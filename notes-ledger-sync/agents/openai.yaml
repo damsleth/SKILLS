@@ -1,0 +1,4 @@
+interface:
+  display_name: "Notes + Ledger Sync"
+  short_description: "Create notes and sync cognitive ledger"
+  default_prompt: "Use $notes-ledger-sync to turn my input into a note in ~/Code/notes and synchronized memory updates in ~/Code/cog-led."
