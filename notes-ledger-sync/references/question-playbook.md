@@ -5,7 +5,7 @@ Use this playbook to ask only high-value questions, then write one clear note an
 ## Core Intake (Ask Missing Items Only)
 
 1. What is the note for (meeting, decision, plan, idea, journal, or reference)?
-2. Where should it live in `~/Code/notes`?
+2. Where should it live in `$NOTES_DIR`?
 3. What must be captured exactly (facts, dates, names, links)?
 4. What outcome should this note support?
 
@@ -43,12 +43,14 @@ Use this playbook to ask only high-value questions, then write one clear note an
 
 ## Notes Folder Routing (Default)
 
-- Personal/home topics -> `~/Code/notes/01-home`
-- Work topics -> `~/Code/notes/02-work`
-- BRKH topics -> `~/Code/notes/03-brkh`
-- Development topics -> `~/Code/notes/04-dev`
-- Daily journal -> `~/Code/notes/90-journal`
-- Temporary scratch -> `~/Code/notes/00-tmp`
+Customize these categories to match your notes directory structure:
+
+- Personal/home topics -> `$NOTES_DIR/01-home`
+- Work topics -> `$NOTES_DIR/02-work`
+- Project-specific topics -> `$NOTES_DIR/03-projects`
+- Development topics -> `$NOTES_DIR/04-dev`
+- Daily journal -> `$NOTES_DIR/90-journal`
+- Temporary scratch -> `$NOTES_DIR/00-tmp`
 
 If destination is ambiguous, propose one folder and ask for confirmation once.
 

@@ -1,14 +1,16 @@
 ---
 name: notes-ledger-sync
-description: Capture and refine notes in ~/Code/notes while synchronizing durable memory to ~/Code/cog-led through the cognitive-ledger skill. Use when asked to create, update, summarize, or structure notes and keep associated facts, preferences, concepts, decisions, goals, or open loops in sync by asking targeted follow-up questions before writing.
+description: Capture and refine notes while synchronizing durable memory through the cognitive-ledger skill. Use when asked to create, update, summarize, or structure notes and keep associated facts, preferences, concepts, decisions, goals, or open loops in sync by asking targeted follow-up questions before writing.
 ---
 
 # Notes + Ledger Sync
 
 Coordinate two repositories in one flow:
 
-- Human-facing notes: `~/Code/notes`
-- Structured memory ledger: `~/Code/cog-led` (via `cognitive-ledger`)
+- Human-facing notes: `$NOTES_DIR` (default: `~/Code/notes`)
+- Structured memory ledger: `$LEDGER_DIR` (default: `~/Code/cog-led`, via `cognitive-ledger`)
+
+> **Setup:** Set `NOTES_DIR` and `LEDGER_DIR` environment variables or edit the defaults above to match your directory layout.
 
 Keep notes readable for humans and ledger entries atomic for retrieval.
 
@@ -24,17 +26,17 @@ Keep notes readable for humans and ledger entries atomic for retrieval.
 - Pull prompts from `references/question-playbook.md`.
 - Prefer specific prompts over generic "anything else?" prompts.
 
-3. Choose the note destination in `~/Code/notes`.
+3. Choose the note destination in `$NOTES_DIR`.
 - Route using `references/question-playbook.md`.
 - Search for existing notes first and prefer updating over creating duplicates.
 - When uncertain between two folders, propose one default and ask for confirmation.
 
-4. Write or update the note in `~/Code/notes`.
+4. Write or update the note in `$NOTES_DIR`.
 - Keep content concise and scannable.
 - Use practical headings; avoid template bloat.
 - Include decisions, next steps, owners, and dates when present.
 
-5. Sync durable items to `~/Code/cog-led`.
+5. Sync durable items to `$LEDGER_DIR`.
 - Use `cognitive-ledger` for all ledger writes.
 - Distill only durable memory from the note; do not copy full note text.
 - Map extracted items to artifact types in `references/question-playbook.md`.
@@ -46,7 +48,7 @@ Keep notes readable for humans and ledger entries atomic for retrieval.
 
 ## Operational Rules
 
-- Read `~/Code/notes/AGENTS.md` before first write to notes when context is unclear.
+- Read `$NOTES_DIR/AGENTS.md` before first write to notes when context is unclear (if it exists).
 - Ask before creating many new notes from one request; default to one canonical note plus atomic ledger updates.
 - Never invent facts; mark uncertain interpretations as inferred when writing to the ledger.
 - If a request is pure drafting with no durable memory, skip ledger writes and state that explicitly.
@@ -56,8 +58,8 @@ Keep notes readable for humans and ledger entries atomic for retrieval.
 Use these commands to minimize duplicate notes:
 
 ```bash
-rg "<topic>" ~/Code/notes -l
-rg "<topic>" ~/Code/cog-led/notes -l
+rg "<topic>" $NOTES_DIR -l
+rg "<topic>" $LEDGER_DIR/notes -l
 ```
 
 For ledger actions, follow `cognitive-ledger` workflows and defaults.
