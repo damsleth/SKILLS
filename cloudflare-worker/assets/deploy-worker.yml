@@ -1,0 +1,35 @@
+name: Deploy Worker
+
+on:
+  push:
+    branches:
+      - __PRODUCTION_BRANCH__
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker-__PRODUCTION_BRANCH__
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: __NODE_VERSION__
+          cache: __CACHE_MODE__
+
+      - name: Install dependencies
+        run: __INSTALL_COMMAND__
+
+      - name: Deploy to Cloudflare Worker
+        run: __DEPLOY_COMMAND__
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

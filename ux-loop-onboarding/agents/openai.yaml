@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX Loop Onboarding"
+  short_description: "Install and use @damsleth/ux-loop workflows"
+  default_prompt: "Use $ux-loop-onboarding to install and configure @damsleth/ux-loop (uxl), complete required flow mapping, and run shots/review/implement workflows in this repository."

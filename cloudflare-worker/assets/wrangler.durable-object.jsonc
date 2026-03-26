@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": "__MAIN__",
+  "compatibility_date": "__COMPATIBILITY_DATE__",
+  // Add an assets block here if the repo serves static output through the Worker.
+  "workers_dev": true,
+  "routes": [
+    // Duplicate this object for additional hostnames.
+    {
+      "pattern": "__CUSTOM_DOMAIN__",
+      "custom_domain": true
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "__DO_BINDING__",
+        "class_name": "__DO_CLASS__"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "__MIGRATION_TAG__",
+      "new_sqlite_classes": ["__DO_CLASS__"]
+    }
+  ],
+  "env": {
+    "preview": {
+      "name": "__PREVIEW_WORKER_NAME__",
+      "workers_dev": true
+    }
+  }
+}

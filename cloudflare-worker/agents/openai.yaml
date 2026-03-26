@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cloudflare Worker"
+  short_description: "Create and deploy Workers"
+  default_prompt: "Use $cloudflare-worker to create a Cloudflare Worker and deploy it to a custom domain."
