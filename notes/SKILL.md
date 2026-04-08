@@ -3,9 +3,9 @@ name: notes
 description: Capture notes and maintain structured long-term memory. Writes human-readable notes to Obsidian and syncs durable facts, preferences, decisions, goals, and open loops to a cognitive ledger. Asks targeted questions before writing. Use when the user wants to take notes, log decisions, capture ideas, plan, journal, or remember something.
 license: WTFPL
 metadata:
-  source_notes_dir: "<notes-dir>"
-  ledger_root: "<ledger-dir>"
-  ledger_notes_dir: "<ledger-notes-dir>"
+  source_notes_dir: "<resolve-from-config>"
+  ledger_root: "<resolve-from-config>"
+  ledger_notes_dir: "<resolve-from-config>"
   defaults:
     mode: notes+ledger
     auto_write: true
@@ -21,37 +21,47 @@ Capture notes and maintain structured long-term memory across two repositories:
 - **Ledger Root** (repo, config, scripts): `$LEDGER_ROOT`
 - **Ledger Notes** (atomic, searchable memory): `$LEDGER_NOTES_DIR`
 
-> **Setup:** Set `LEDGER_SOURCE_NOTES_DIR`, `LEDGER_ROOT`, and `LEDGER_NOTES_DIR` environment variables or edit the defaults in the frontmatter above.
+> **Setup:** On first run the skill will ask for your `ledger_root` path and save it to `~/.config/cognitive-ledger/config.yaml`. All other paths are read from `{ledger_root}/config.yaml`.
 
-### Environment Preflight
+### Path Resolution
 
-- Before any notes workflow, check whether `LEDGER_SOURCE_NOTES_DIR`, `LEDGER_ROOT`, and `LEDGER_NOTES_DIR` are set.
-- If any variable is missing, stop and prompt the user for the missing path(s) before continuing.
-- After the user provides the path(s), advise them to add the exports to `~/.zshrc` so future sessions inherit them:
+The only value that must be bootstrapped is `LEDGER_ROOT`. Everything else comes from `config.yaml` inside it.
 
-```bash
-export LEDGER_SOURCE_NOTES_DIR="~/path/to/notes"
-export LEDGER_ROOT="~/path/to/cognitive-ledger"
-export LEDGER_NOTES_DIR="$LEDGER_ROOT/notes"
-```
+**To find `LEDGER_ROOT`** - use ONLY the Read tool, no Bash:
+1. Read `~/.config/cognitive-ledger/config.yaml`. If it exists and contains `ledger_root`, use that value.
+2. If that fails, ask the user for the path to their cognitive-ledger repo, then write it to `~/.config/cognitive-ledger/config.yaml` so it's never needed again:
+   ```yaml
+   ledger_root: /path/to/cognitive-ledger
+   ```
 
-- Tell the user to reload their shell after updating `~/.zshrc`:
+Never run a Bash command to check or echo environment variables. The Read tool is sufficient and requires no user approval.
 
-```bash
-source ~/.zshrc
-```
+**Once `LEDGER_ROOT` is known**, check whether `$LEDGER_ROOT/config.yaml` exists:
+
+- **If it exists** - Read it with the Read tool and extract `ledger_notes_dir` and `source_notes_dir`.
+- **If it does not exist** - Onboarding flow:
+  1. Tell the user `config.yaml` is missing and that you'll create it from `config.sample.yaml`.
+  2. Ask for the three paths in one batch:
+     - `ledger_root` - path to this repo
+     - `ledger_notes_dir` - path to the atomic ledger notes directory
+     - `source_notes_dir` - path to the human-facing Obsidian notes directory
+  3. Read `$LEDGER_ROOT/config.sample.yaml`, substitute the provided values, and write the result to `$LEDGER_ROOT/config.yaml`.
+  4. Confirm the file was created before continuing.
+
+Expand any `~` to the user's home directory. All subsequent operations use these resolved paths.
 
 ## Boot Sequence (Run on Activation)
 
-1. `cd $LEDGER_ROOT`
-2. Read `$LEDGER_NOTES_DIR/08_indices/context.md` - essential facts, active loops, key preferences
-3. Run `./scripts/sheep status` - check if maintenance needed
-4. If `$LEDGER_NOTES_DIR/01_identity/id__voice_dna.md` exists, read it - apply voice profile when writing notes longer than 2 sentences
+After resolving paths from `config.yaml`, use the literal resolved values - never `$VAR` syntax in Bash commands, as it triggers permission prompts regardless of whether the variable is set.
+
+1. Use the Read tool on `{ledger_notes_dir}/08_indices/context.md` - essential facts, active loops, key preferences
+2. Run `./scripts/sheep status` from `{ledger_root}` - check if maintenance needed
+3. Use the Read tool on `{ledger_notes_dir}/01_identity/id__voice_dna.md` if it exists - apply voice profile when writing notes longer than 2 sentences
 
 **Two-tier lookup strategy:**
 
 - `context.md` for boot (compact summary, always loaded)
-- `$LEDGER_NOTES_DIR/08_indices/index.md` or `index.json` as a lightweight lookup table for deeper searches (do NOT load at boot)
+- `{ledger_notes_dir}/08_indices/index.md` or `index.json` as a lightweight lookup table for deeper searches (do NOT load at boot)
 
 ## Write Modes
 
