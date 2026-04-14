@@ -6,10 +6,12 @@ A collection of skills for AI coding agents (Claude Code, Codex, Copilot). Each 
 
 | Skill | Description |
 |-------|-------------|
+| **blog-damsleth-no** | Write blog post drafts with proper frontmatter and manifest updates |
+| **calendar** | Manage Outlook/Microsoft 365 calendar events via cal-cli |
 | **cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
-| **cognitive-ledger** | File-based, self-maintaining memory substrate for long-term structured memory across agents |
+| **did** | Review and manage timesheets via did-cli, with calendar as source of truth |
 | **meeting-notes** | Interactive meeting lifecycle: prep, live notes, and summary with action items |
-| **notes-ledger-sync** | Capture notes and sync durable memory through the cognitive-ledger |
+| **notes** | Capture notes to Obsidian and sync structured memory to a cognitive ledger |
 | **things3-read-tasks** | Read and search Things3 tasks via things-cli |
 | **ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline |
 
