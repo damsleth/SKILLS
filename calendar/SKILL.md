@@ -1,7 +1,7 @@
 ---
 name: calendar
 description: Manage Outlook/Microsoft 365 calendar events. Wraps cal-cli for listing, creating, updating, and deleting events. Supports JWT, cookie, and OAuth auth. Use when the user asks about their calendar, schedule, meetings, or events.
-version: 2.0.0
+version: 2.1.0
 author: damsleth
 allowed-tools:
   - Bash
@@ -32,6 +32,7 @@ Manage the user's Outlook / Microsoft 365 calendar. Wraps `cal-cli` (on PATH).
   1. **JWT token** from Outlook Web - grab from DevTools, ~65 min lifetime, full permissions
   2. **OAuth** via `get-token` CLI - automated flow, requires Calendars.ReadWrite scope
   3. **Cookie** - full Cookie header from DevTools, longer-lived but messier
+- **Token refresh**: `cal-cli refresh` uses CDP (Chrome DevTools Protocol) to capture a fresh token from the running browser without user interaction. Requires browser started with `cal-cli setup` (one-time).
 - **Config**: `/Users/damsleth/Code/CLI/cal-cli/.env`
 
 ## Categories
@@ -61,9 +62,22 @@ On every invocation:
 
 1. Verify cal-cli is available: `which cal-cli`
 2. Check auth status: `cal-cli config`
-3. If token is expired, tell the user to refresh it
+3. If token is expired, try `cal-cli refresh` first (headless CDP refresh, no UI needed)
+4. If refresh fails (no CDP), fall back to `cal-cli login` (interactive, reads clipboard)
 
 ## Usage
+
+### Auth / Token management
+
+```bash
+cal-cli login               # Interactive: grabs JWT from clipboard or prompts for paste
+cal-cli setup               # One-time: restart browser with remote debugging (CDP port 9222)
+cal-cli refresh             # Headless: capture fresh token via CDP (no UI)
+```
+
+Typical flow when token expires:
+1. Try `cal-cli refresh` - works if browser was started with `cal-cli setup`
+2. If no CDP available, use `cal-cli login` - opens Outlook, reads clipboard
 
 ### List events
 
@@ -93,7 +107,10 @@ Defaults: date=today, start=09:00, end=10:00, timezone=W. Europe Standard Time
 cal-cli update --id <event-id> --subject "New title"
 cal-cli update --id <event-id> --category "ProjectX"
 cal-cli update --id <event-id> --start 14:00 --end 15:00
+cal-cli update --id <event-id> --date 2026-04-15   # moves to new date, keeps times
 ```
+
+Update is smart about partial changes - changing just date, just start time, or just end time preserves the other components from the existing event.
 
 ### Delete event
 
@@ -158,7 +175,7 @@ When the user invokes `/calendar`:
 
 ## Error handling
 
-- **Token expired**: Tell user to grab a fresh JWT from DevTools
+- **Token expired**: Run `cal-cli refresh` first. If that fails, fall back to `cal-cli login`
 - **401/403**: Auth issue, check `cal-cli config`
 - **404**: Wrong event ID
 - **429**: Rate limited, wait and retry
