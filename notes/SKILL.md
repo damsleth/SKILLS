@@ -54,6 +54,8 @@ Expand any `~` to the user's home directory. All subsequent operations use these
 
 After resolving paths from `config.yaml`, use the literal resolved values - never `$VAR` syntax in Bash commands, as it triggers permission prompts regardless of whether the variable is set.
 
+**Avoid `cd && <write-op>` compound commands** - they trigger a safety hook. Instead use absolute paths directly: `mv /abs/src/file1 /abs/src/file2 /abs/dest/`. For reading files, prefer the Read/Glob tools over `for f in ... head` bash loops.
+
 1. Use the Read tool on `{ledger_notes_dir}/08_indices/context.md` - essential facts, active loops, key preferences
 2. Run `./scripts/sheep status` from `{ledger_root}` - check if maintenance needed
 3. Use the Read tool on `{ledger_notes_dir}/01_identity/id__voice_dna.md` if it exists - apply voice profile when writing notes longer than 2 sentences
