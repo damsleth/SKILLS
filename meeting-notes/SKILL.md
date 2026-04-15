@@ -28,34 +28,35 @@ If calendar access fails (token issues, no meetings, etc.), fall back to manual 
 
 ### Step 1: Get the MS Graph token
 
-Run the `get-token` CLI tool to obtain a JWT token with Microsoft Graph scopes:
+Run `get-token` as a **standalone command** — do NOT wrap it in `$(...)`:
 
 ```bash
-TOKEN=$(get-token)
+get-token
 ```
 
-The tool returns a raw JWT token string. If it fails or returns empty, move to the **Manual Fallback** section below.
+The raw JWT token is printed to stdout. Read the value from the tool result and use it as a literal string in all subsequent `Authorization: Bearer` headers. If it fails or returns empty, move to the **Manual Fallback** section below.
 
 ### Step 2: Get the user's profile
 
 Fetch the user's profile to identify their email domain (needed to distinguish internal vs external participants):
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName" 
+curl -s -H "Authorization: Bearer <TOKEN>" \
+  "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName"
 ```
 
-Extract `mail` or `userPrincipalName` — the domain part (after @) is the user's organization domain.
+Replace `<TOKEN>` with the literal token value from Step 1. Extract `mail` or `userPrincipalName` — the domain part (after @) is the user's organization domain.
 
 ### Step 3: Fetch meetings for the next 7 days
 
-```bash
-START=$(date -u +"%Y-%m-%dT%H:%M:%S.0000000Z")
-END=$(date -u -d "+7 days" +"%Y-%m-%dT%H:%M:%S.0000000Z" 2>/dev/null || date -u -v+7d +"%Y-%m-%dT%H:%M:%S.0000000Z")
+Use inline date substitution inside the curl URL (so the command still starts with `curl`):
 
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://graph.microsoft.com/v1.0/me/calendarView?\$select=subject,start,end,location,attendees,organizer,isOnlineMeeting,onlineMeetingUrl&\$filter=start/dateTime ge '$START' and end/dateTime le '$END'&\$orderby=start/dateTime&\$top=50"
+```bash
+curl -s -H "Authorization: Bearer <TOKEN>" \
+  "https://graph.microsoft.com/v1.0/me/calendarView?\$select=subject,start,end,location,attendees,organizer,isOnlineMeeting,onlineMeetingUrl&\$filter=start/dateTime ge '$(date -u +"%Y-%m-%dT%H:%M:%SZ")' and end/dateTime le '$(date -u -v+7d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -d "+7 days" +"%Y-%m-%dT%H:%M:%SZ")'&\$orderby=start/dateTime&\$top=50"
 ```
+
+Replace `<TOKEN>` with the literal token value from Step 1.
 
 Filter the results: only include meetings where there is at least 1 attendee whose email address is different from the user's own email. Solo calendar blocks, focus time, etc. should be excluded.
 
