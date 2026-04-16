@@ -148,7 +148,7 @@ If you couldn't identify someone clearly, say so and ask:
 Check if templates exist in the skill's `templates/` directory. Read available templates:
 
 ```bash
-ls /path/to/skill/templates/*.md 2>/dev/null
+ls /Users/damsleth/.claude/skills/meeting-notes/templates/*.md 2>/dev/null
 ```
 
 If templates exist, ask the user (in Norwegian):
