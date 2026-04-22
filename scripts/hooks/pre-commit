@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run static lint on all skills before allowing commit.
+# Enable with: git config core.hooksPath scripts/hooks
+exec "$(git rev-parse --show-toplevel)/scripts/lint.sh"
