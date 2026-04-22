@@ -27,34 +27,34 @@ Manage the user's Outlook / Microsoft 365 calendar. Wraps `cal-cli` (on PATH).
                                     Microsoft Graph v1.0 (OAuth mode)
 ```
 
-- **CLI**: `cal-cli` at `/Users/damsleth/Code/CLI/cal-cli/` (symlinked to PATH)
+- **CLI**: `cal-cli` (must be on PATH)
 - **Auth** (tried in order):
   1. **JWT token** from Outlook Web - grab from DevTools, ~65 min lifetime, full permissions
   2. **OAuth** via `get-token` CLI - automated flow, requires Calendars.ReadWrite scope
   3. **Cookie** - full Cookie header from DevTools, longer-lived but messier
 - **Token refresh**: `cal-cli refresh` uses CDP (Chrome DevTools Protocol) to capture a fresh token from the running browser without user interaction. Requires browser started with `cal-cli setup` (one-time).
-- **Config**: `/Users/damsleth/Code/CLI/cal-cli/.env`
+- **Config**: `.env` in cal-cli's install directory (see `cal-cli config` for the resolved path)
 
 ## Categories
 
-Categories are the bridge between the calendar and DID. **Every work event should have a category** - it determines which project/customer the time gets billed to.
+Categories are the bridge between the calendar and did. **Every work event should have a category** - it determines which project/customer the time gets billed to.
 
 - Categories are a string array on each event: `["CC LUNCH"]`
-- DID reads categories to sort events into the correct project/customer
-- An event without a category is "uncategorized" in DID
-- Category names are **case-sensitive** and must match what DID expects
+- did reads categories to sort events into the correct project/customer
+- An event without a category is "uncategorized" in did
+- Category names are **case-sensitive** and must match what did expects
 - List available categories: `cal-cli categories`
 - **Always ask for a category** when creating work events if the user hasn't specified one
 - Don't ask for non-work events (lunch, personal blocks) unless the user has a category for them
 
-## DID awareness
+## did awareness
 
-DID reads directly from this calendar - **the calendar IS the timesheet**:
+did reads directly from this calendar - **the calendar IS the timesheet**:
 
-- Event categories map to DID projects/customers
+- Event categories map to did projects/customers
 - Modifying or deleting events affects timesheet data
 - Always confirm before bulk updates or deletions
-- The DID CLI lives at `/Users/damsleth/Code/CLI/did-cli/`
+- The did CLI (`did-cli`) is the companion tool for timesheet review
 
 ## Boot
 
@@ -160,7 +160,7 @@ Example:
 2. **Never bulk-modify more than 5 events** without listing and getting approval
 3. **Warn if creating events in the past**
 4. **Warn if creating overlapping events** - check existing events first
-5. **Remember DID**: modifications affect the timesheet
+5. **Remember did**: modifications affect the timesheet
 6. **Always verify dates** - when creating events for "this week" or similar relative ranges, compute the actual calendar dates first (use `python3` or `date` to confirm day-of-week). Never assume date-to-weekday mappings.
 
 ## Workflow

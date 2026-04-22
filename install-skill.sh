@@ -19,15 +19,34 @@ TARGETS=(
 
 SKILL_NAMES=()
 SKILL_DESCS=()
+SKILL_PATHS=()
 
-for dir in "$SCRIPT_DIR"/*/; do
+# Scan both the repo root (public skills) and personal/ (gitignored).
+# personal/ is optional - the repo is public and most clones won't have one.
+shopt -s nullglob
+for dir in "$SCRIPT_DIR"/*/ "$SCRIPT_DIR"/personal/*/; do
     [ -f "$dir/SKILL.md" ] || continue
     name="$(basename "$dir")"
+    [ "$name" = "personal" ] && continue
     desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
     desc="${desc:-(no description)}"
     SKILL_NAMES+=("$name")
     SKILL_DESCS+=("$desc")
+    SKILL_PATHS+=("${dir%/}")
 done
+shopt -u nullglob
+
+# Lookup a skill's source path by name (returns empty if not found)
+skill_path_by_name() {
+    local want="$1" i
+    for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
+        if [ "${SKILL_NAMES[$i]}" = "$want" ]; then
+            echo "${SKILL_PATHS[$i]}"
+            return 0
+        fi
+    done
+    return 1
+}
 
 if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
     echo "No skills found (folders with SKILL.md) in $SCRIPT_DIR"
@@ -35,15 +54,35 @@ if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
 fi
 
 # ── Check install state ──
+#
+# A skill can be in one of three states across the TARGETS dirs:
+#   full    — symlink present in every target
+#   partial — symlink present in some but not all targets
+#   none    — no symlink anywhere
+#
+# The installer reconciles to the desired state on apply, so partial
+# installs get repaired (missing symlinks get created) rather than
+# silently preselected as "already installed".
 
-is_installed() {
+install_count() {
     local name="$1"
+    local c=0
     for target_base in "${TARGETS[@]}"; do
-        if [ -L "$target_base/$name" ]; then
-            return 0
-        fi
+        [ -L "$target_base/$name" ] && c=$((c + 1))
     done
-    return 1
+    echo "$c"
+}
+
+install_state() {
+    local c
+    c="$(install_count "$1")"
+    if [ "$c" -eq "${#TARGETS[@]}" ]; then
+        echo "full"
+    elif [ "$c" -eq 0 ]; then
+        echo "none"
+    else
+        echo "partial"
+    fi
 }
 
 # ── Terminal helpers ──
@@ -62,18 +101,23 @@ ARROW='▸'
 
 interactive_menu() {
     local count=${#SKILL_NAMES[@]}
+    local total=${#TARGETS[@]}
     local cursor=0
 
-    # Track selected state — pre-select installed skills
+    # Track per-target install state.
+    # Preselect ON when any target has the symlink (including partial
+    # installs) so the user sees them as installed; on apply we
+    # reconcile to the desired state across all targets.
     local selected=()
-    local was_installed=()
+    local actual_count=()
     for i in $(seq 0 $((count - 1))); do
-        if is_installed "${SKILL_NAMES[$i]}"; then
+        local c
+        c="$(install_count "${SKILL_NAMES[$i]}")"
+        actual_count+=("$c")
+        if [ "$c" -gt 0 ]; then
             selected+=("1")
-            was_installed+=("1")
         else
             selected+=("0")
-            was_installed+=("0")
         fi
     done
 
@@ -111,14 +155,19 @@ interactive_menu() {
                 checkbox="${DIM}${EMPTY}${RESET}"
             fi
 
-            # Show change indicator
+            # Show change indicator based on reconciliation:
+            #   selected=1, actual<total  → install (or repair if partial)
+            #   selected=0, actual>0      → uninstall
             local indicator=""
-            if [ "${selected[$i]}" != "${was_installed[$i]}" ]; then
-                if [ "${selected[$i]}" = "1" ]; then
+            local c="${actual_count[$i]}"
+            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$total" ]; then
+                if [ "$c" -eq 0 ]; then
                     indicator=" ${GREEN}← install${RESET}"
                 else
-                    indicator=" ${RED}← uninstall${RESET}"
+                    indicator=" ${CYAN}← repair (${c}/${total})${RESET}"
                 fi
+            elif [ "${selected[$i]}" = "0" ] && [ "$c" -gt 0 ]; then
+                indicator=" ${RED}← uninstall${RESET}"
             fi
 
             echo -e "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
@@ -127,23 +176,32 @@ interactive_menu() {
 
         echo ""
 
-        # Count pending changes
-        local installs=0 uninstalls=0
+        # Count pending changes by comparing desired (selected) vs actual
+        local installs=0 repairs=0 uninstalls=0
         for i in $(seq 0 $((count - 1))); do
-            if [ "${selected[$i]}" != "${was_installed[$i]}" ]; then
-                if [ "${selected[$i]}" = "1" ]; then
+            local c="${actual_count[$i]}"
+            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$total" ]; then
+                if [ "$c" -eq 0 ]; then
                     installs=$((installs + 1))
                 else
-                    uninstalls=$((uninstalls + 1))
+                    repairs=$((repairs + 1))
                 fi
+            elif [ "${selected[$i]}" = "0" ] && [ "$c" -gt 0 ]; then
+                uninstalls=$((uninstalls + 1))
             fi
         done
 
-        if [ $installs -gt 0 ] || [ $uninstalls -gt 0 ]; then
+        if [ $installs -gt 0 ] || [ $repairs -gt 0 ] || [ $uninstalls -gt 0 ]; then
+            local parts=()
+            [ $installs -gt 0 ]   && parts+=("${GREEN}${installs} to install${RESET}")
+            [ $repairs -gt 0 ]    && parts+=("${CYAN}${repairs} to repair${RESET}")
+            [ $uninstalls -gt 0 ] && parts+=("${RED}${uninstalls} to uninstall${RESET}")
             local summary=""
-            [ $installs -gt 0 ] && summary="${GREEN}${installs} to install${RESET}"
-            [ $installs -gt 0 ] && [ $uninstalls -gt 0 ] && summary="$summary, "
-            [ $uninstalls -gt 0 ] && summary="${summary}${RED}${uninstalls} to uninstall${RESET}"
+            local sep=""
+            for p in "${parts[@]}"; do
+                summary="${summary}${sep}${p}"
+                sep=", "
+            done
             echo -e "  ${summary}  ${DIM}— press enter to apply${RESET}"
         else
             echo -e "  ${DIM}No changes${RESET}"
@@ -186,7 +244,9 @@ interactive_menu() {
 }
 
 # ── Apply install/uninstall changes ──
-# Uses $selected and $was_installed from interactive_menu's scope
+# Reconciles each target directory to the desired state
+# (selected=1 → symlink present; selected=0 → symlink absent).
+# Works for fresh installs, partial-install repairs, and cleanup.
 apply_changes() {
     local changed=0
 
@@ -194,22 +254,43 @@ apply_changes() {
 
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
         local name="${SKILL_NAMES[$i]}"
-        local src="$SCRIPT_DIR/$name"
+        local src="${SKILL_PATHS[$i]}"
+        local created=0
+        local removed=0
 
-        if [ "${selected[$i]}" = "1" ] && [ "${was_installed[$i]}" = "0" ]; then
+        if [ "${selected[$i]}" = "1" ]; then
             for target_base in "${TARGETS[@]}"; do
-                mkdir -p "$target_base"
-                ln -sf "$src" "$target_base/$name"
+                local link="$target_base/$name"
+                if [ -L "$link" ] && [ ! -e "$link" ]; then
+                    # Broken symlink (source moved/deleted) - repair
+                    ln -sfn "$src" "$link"
+                    created=$((created + 1))
+                elif [ ! -e "$link" ] && [ ! -L "$link" ]; then
+                    # Truly missing - create
+                    mkdir -p "$target_base"
+                    ln -sfn "$src" "$link"
+                    created=$((created + 1))
+                elif [ ! -L "$link" ]; then
+                    # Real file/directory in the way - refuse to clobber
+                    echo -e "  ${RED}!${RESET} $link ${DIM}(not a symlink - requires manual cleanup: ${RESET}rm -rf $link${DIM})${RESET}"
+                fi
+                # Working symlink (to us or an override): leave alone
             done
-            echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET}"
-            changed=$((changed + 1))
-
-        elif [ "${selected[$i]}" = "0" ] && [ "${was_installed[$i]}" = "1" ]; then
+            if [ $created -gt 0 ]; then
+                echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
+                changed=$((changed + 1))
+            fi
+        else
             for target_base in "${TARGETS[@]}"; do
-                rm -f "$target_base/$name"
+                if [ -L "$target_base/$name" ]; then
+                    rm -f "$target_base/$name"
+                    removed=$((removed + 1))
+                fi
             done
-            echo -e "  ${RED}✗${RESET} Uninstalled ${BOLD}$name${RESET}"
-            changed=$((changed + 1))
+            if [ $removed -gt 0 ]; then
+                echo -e "  ${RED}✗${RESET} Uninstalled ${BOLD}$name${RESET} ${DIM}(${removed} target(s))${RESET}"
+                changed=$((changed + 1))
+            fi
         fi
     done
 
@@ -234,25 +315,38 @@ usage() {
 }
 
 cmd_list() {
+    local total=${#TARGETS[@]}
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
         local name="${SKILL_NAMES[$i]}"
-        if is_installed "$name"; then
+        local c
+        c="$(install_count "$name")"
+        if [ "$c" -eq "$total" ]; then
             echo -e "  ${GREEN}${CHECK}${RESET}  $name"
-        else
+        elif [ "$c" -eq 0 ]; then
             echo -e "  ${DIM}${EMPTY}${RESET}  $name"
+        else
+            echo -e "  ${CYAN}${CHECK}${RESET}  $name ${DIM}(partial: ${c}/${total})${RESET}"
         fi
     done
 }
 
 cmd_install() {
     local name="$1"
-    local src="$SCRIPT_DIR/$name"
-    if [ ! -f "$src/SKILL.md" ]; then
+    local src
+    src="$(skill_path_by_name "$name")" || true
+    if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
         echo "Unknown skill: $name" >&2; exit 1
     fi
     for target_base in "${TARGETS[@]}"; do
         mkdir -p "$target_base"
-        ln -sf "$src" "$target_base/$name"
+        local link="$target_base/$name"
+        # Refuse to clobber a real directory/file. ln -sf would silently
+        # nest the link inside a directory, which is almost never what we want.
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+            echo "  ! $link (not a symlink - requires manual cleanup: rm -rf $link)" >&2
+            continue
+        fi
+        ln -sfn "$src" "$link"
     done
     echo "Installed: $name"
 }

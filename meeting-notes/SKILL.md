@@ -5,7 +5,7 @@ description: Interactive meeting notes skill for preparing, running, and documen
 
 # Møtenotater (meeting-notes)
 
-An interactive skill for preparing, conducting, and documenting meetings. The skill fetches meetings from Microsoft Graph, researches participants, and produces clean markdown meeting notes with live note-taking support.
+An interactive skill for preparing, conducting, and documenting meetings. The skill fetches meetings via `cal-cli` (Outlook / Microsoft 365), collects participant info from the user, researches externals, and produces clean markdown meeting notes with live note-taking support.
 
 All user-facing communication MUST be in Norwegian (Bokmål). Internal comments, code, and SKILL.md itself are in English.
 
@@ -13,56 +13,48 @@ All user-facing communication MUST be in Norwegian (Bokmål). Internal comments,
 
 The workflow has these phases:
 
-1. **Calendar lookup** — Fetch the user's meetings for the next 7 days via MS Graph
+1. **Calendar lookup** — Fetch the user's meetings for the next 7 days via `cal-cli`
 2. **Meeting selection** — User picks which meeting to document
-3. **Participant research** — Look up external participants via web search
+3. **Participant research** — Collect attendees from the user, then look up externals via web search
 4. **File setup** — Create the markdown meeting notes file (with optional template)
 5. **Live meeting** — User takes notes in chat, Claude refines and appends them
 6. **Wrap-up** — Meeting end timestamp, summary, and action items
 
-If calendar access fails (token issues, no meetings, etc.), fall back to manual meeting input.
+If calendar access fails, fall back to manual meeting input.
 
 ---
 
 ## Phase 1: Get Calendar Data
 
-### Step 1: Get the MS Graph token
+### Step 1: Identify the user's email domain
 
-Run `get-token` as a **standalone command** — do NOT wrap it in `$(...)`:
+The user's email is available in the session context (typically a `userEmail` block in CLAUDE.md). Extract the domain part (after `@`) — this is the organization domain used to classify attendees as intern/ekstern. If unavailable, ask the user.
 
-```bash
-get-token
-```
+### Step 2: Fetch meetings with cal-cli
 
-The raw JWT token is printed to stdout. Read the value from the tool result and use it as a literal string in all subsequent `Authorization: Bearer` headers. If it fails or returns empty, move to the **Manual Fallback** section below.
-
-### Step 2: Get the user's profile
-
-Fetch the user's profile to identify their email domain (needed to distinguish internal vs external participants):
+Compute the date range (today through today + 7 days) and run:
 
 ```bash
-curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName"
+cal-cli events --from <YYYY-MM-DD> --to <YYYY-MM-DD> --limit 50
 ```
 
-Replace `<TOKEN>` with the literal token value from Step 1. Extract `mail` or `userPrincipalName` — the domain part (after @) is the user's organization domain.
+Output is a JSON array. Each event has: `id`, `subject`, `start`, `end`, `categories`, `location`, `showAs`, `isAllDay`.
 
-### Step 3: Fetch meetings for the next 7 days
+**Note:** `cal-cli` does not return attendees. Participant info is collected from the user in Phase 3.
 
-Use inline date substitution inside the curl URL (so the command still starts with `curl`):
+### Step 3: Filter the results
 
-```bash
-curl -s -H "Authorization: Bearer <TOKEN>" \
-  "https://graph.microsoft.com/v1.0/me/calendarView?\$select=subject,start,end,location,attendees,organizer,isOnlineMeeting,onlineMeetingUrl&\$filter=start/dateTime ge '$(date -u +"%Y-%m-%dT%H:%M:%SZ")' and end/dateTime le '$(date -u -v+7d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -d "+7 days" +"%Y-%m-%dT%H:%M:%SZ")'&\$orderby=start/dateTime&\$top=50"
-```
+Exclude events where any of the following are true:
+- `isAllDay` is true (calendar blockers, out-of-office)
+- `showAs` is `Free` or `Tentative`
+- `categories` contains `IGNORE`
+- Subject clearly indicates a personal block (e.g. "Focus time", "Lunch", "[Calendar Blocker] ...")
 
-Replace `<TOKEN>` with the literal token value from Step 1.
-
-Filter the results: only include meetings where there is at least 1 attendee whose email address is different from the user's own email. Solo calendar blocks, focus time, etc. should be excluded.
+The remaining events are the candidates for the meeting picker.
 
 ### Manual Fallback
 
-If token retrieval or Graph API calls fail, tell the user (in Norwegian):
+If `cal-cli` fails or returns no usable meetings, tell the user (in Norwegian):
 
 > Kunne ikke hente kalenderdata. La oss legge inn møteinfo manuelt.
 
@@ -80,39 +72,44 @@ Present the filtered meetings to the user as a numbered list, in Norwegian. Incl
 - Date and time
 - Subject/title
 - Location (if any)
-- Number of other attendees
 
 Example output:
 
 > Her er møtene dine de neste 7 dagene:
 >
-> 1. **Prosjektmøte med Acme AS** — mandag 27. mars kl. 10:00-11:00, Teams (3 deltakere)
-> 2. **Statusmøte Q2** — tirsdag 28. mars kl. 14:00-15:00, Møterom 4 (5 deltakere)
+> 1. **Prosjektmøte med Acme AS** - mandag 27. mars kl. 10:00-11:00, Teams
+> 2. **Statusmøte Q2** - tirsdag 28. mars kl. 14:00-15:00, Møterom 4
 > ...
 
 Ask: "Hvilket møte skal vi ta notater for?"
 
-Use the `ask_user_input` tool to present the choices when practical.
+Present the choices interactively so the user can pick one by number or title.
 
 ---
 
 ## Phase 3: Participant Research
 
-Once a meeting is selected, list the attendees. Classify each as:
-- **Intern** — same email domain as the user
-- **Ekstern** — different email domain
+Once a meeting is selected, ask the user for the attendee list (since `cal-cli` doesn't expose attendees):
 
-Present the attendees to the user and ask who they want background info on. Use `ask_user_input` with these options:
+> Hvem deltar på møtet? Lim inn navn og e-postadresser, eller bare navn hvis du ikke har e-post.
+
+Parse the reply into a list of attendees. Classify each as:
+- **Intern** - same email domain as the user
+- **Ekstern** - different email domain (or explicitly flagged as external by the user)
+
+If an attendee has no email, ask the user whether they are intern or ekstern.
+
+Present the attendees to the user and ask who they want background info on. Offer these options:
 - "Eksterne" (all external participants)
 - "Alle" (everyone)
 - "Ingen" (skip research)
 - "Egendefinert" (let me pick)
 
-If "Egendefinert" is selected, present checkboxes (multi-select) with each participant's name.
+If "Egendefinert" is selected, let the user multi-select which participants to research (checkboxes, numbered picks, whatever the environment supports).
 
 ### Research Execution
 
-For each selected participant, use `web_search` to find:
+For each selected participant, search the web to find:
 - Current role/title and employer
 - Brief professional background
 - LinkedIn profile (if findable)
@@ -145,11 +142,13 @@ If you couldn't identify someone clearly, say so and ask:
 
 ### Template Selection
 
-Check if templates exist in the skill's `templates/` directory. Read available templates:
+Check if templates exist in the skill's `templates/` subdirectory (relative to wherever this skill is installed - the path differs between Claude, Codex, and Copilot). List available templates with the equivalent of:
 
 ```bash
-ls /Users/damsleth/.claude/skills/meeting-notes/templates/*.md 2>/dev/null
+ls "$SKILL_DIR/templates"/*.md 2>/dev/null
 ```
+
+Resolve `$SKILL_DIR` from the skill's invocation context.
 
 If templates exist, ask the user (in Norwegian):
 
@@ -228,7 +227,7 @@ The user will send messages in chat. These can be:
 - Group notes by topic/theme when natural, using `###` subheadings
 
 **For questions:**
-- Answer using your researched participant data and web search if needed
+- Answer using your researched participant data, doing additional web lookups if needed
 - Don't append Q&A to the meeting notes unless the user explicitly asks
 
 **For instructions:**
@@ -295,7 +294,7 @@ Refine based on their feedback, then confirm the final file is saved.
 
 - **Language:** All user-facing output in Norwegian (Bokmål). Code, logs, and internal comments in English.
 - **Context awareness:** Keep participant research in active context throughout the meeting. Use it to resolve "han/hun/de" references and company mentions.
-- **File updates:** After each batch of notes, append to the markdown file. Use `str_replace` or append operations — don't rewrite the entire file each time.
+- **File updates:** After each batch of notes, append to the markdown file. Edit or append to it - don't rewrite the entire file each time.
 - **Timestamps:** Use local time (user's timezone). Default to Europe/Oslo if not specified.
 - **Tone:** Professional but approachable in Norwegian. Short sentences, no fluff.
 - **Proactive:** If the user's notes are ambiguous, ask a clarifying question rather than guessing wrong. But if context makes it obvious (like gender-based pronoun resolution), just handle it.

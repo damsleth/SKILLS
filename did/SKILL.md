@@ -32,8 +32,8 @@ did (timesheet)     <-- did-cli (read-only view of calendar data)
 - **did is read-only**. It reads calendar events and presents them as timesheet entries.
 - **The calendar IS the timesheet**. To change hours, you change calendar events.
 - **Categories are the bridge**. Event categories map to did projects/customers.
-- **did-cli** at `/Users/damsleth/Code/CLI/did-cli/` - queries did's GraphQL API
-- **cal-cli** at `/Users/damsleth/Code/CLI/cal-cli/` - reads/writes Outlook calendar
+- **did-cli** (on PATH) - queries did's GraphQL API
+- **cal-cli** (on PATH) - reads/writes Outlook calendar
 
 ## Boot
 
