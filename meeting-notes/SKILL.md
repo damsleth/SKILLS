@@ -30,12 +30,24 @@ If calendar access fails, fall back to manual meeting input.
 
 The user's email is available in the session context (typically a `userEmail` block in CLAUDE.md). Extract the domain part (after `@`) — this is the organization domain used to classify attendees as intern/ekstern. If unavailable, ask the user.
 
-### Step 2: Fetch meetings with owa-cal
+### Step 2: Infer profile and fetch meetings with owa-cal
+
+Infer the owa-cal profile from the user's request:
+
+| User says...                              | Profile flag        |
+|-------------------------------------------|---------------------|
+| "Norconsult", "Crayon", "NOCOS"           | `--profile crayon`  |
+| "BRKH", "Røde Kors", "vaktgruppe"         | `--profile brkh`    |
+| "SoftwareOne", "SWON", no hint            | (none, default)     |
+
+If the user's request is ambiguous and they have meetings in multiple calendars, ask:
+
+> Hvilken kalender skal jeg hente møter fra? (SWON, Crayon, BRKH, eller alle?)
 
 Compute the date range (today through today + 7 days) and run:
 
 ```bash
-owa-cal events --from <YYYY-MM-DD> --to <YYYY-MM-DD> --limit 50
+owa-cal [--profile <alias>] events --from <YYYY-MM-DD> --to <YYYY-MM-DD> --limit 50
 ```
 
 Output is a JSON array. Each event has: `id`, `subject`, `start`, `end`, `categories`, `location`, `showAs`, `isAllDay`.

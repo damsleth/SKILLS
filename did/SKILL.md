@@ -1,7 +1,7 @@
 ---
 name: did
-description: Review and manage did timesheets. Shows hours, submission status, and period summaries. Fixes timesheet issues via cal-cli (calendar is the source of truth). Use when the user asks about their timesheet, hours, did, time tracking, or wants to review/submit a period.
-version: 1.0.0
+description: Review and manage did timesheets. Shows hours, submission status, and period summaries. Fixes timesheet issues via owa-cal (calendar is the source of truth). Use when the user asks about their timesheet, hours, did, time tracking, or wants to review/submit a period.
+version: 2.0.0
 author: damsleth
 allowed-tools:
   - Bash
@@ -18,12 +18,12 @@ tags:
 
 # did Skill
 
-Review and manage timesheets via `did-cli` and `cal-cli`.
+Review and manage timesheets via `did-cli` and `owa-cal`.
 
 ## Architecture
 
 ```
-Calendar (Outlook)  <-- cal-cli (read/write)
+Calendar (Outlook)  <-- owa-cal (read/write, via owa-piggy auth)
        |
        v
 did (timesheet)     <-- did-cli (read-only view of calendar data)
@@ -33,20 +33,38 @@ did (timesheet)     <-- did-cli (read-only view of calendar data)
 - **The calendar IS the timesheet**. To change hours, you change calendar events.
 - **Categories are the bridge**. Event categories map to did projects/customers.
 - **did-cli** (on PATH) - queries did's GraphQL API
-- **cal-cli** (on PATH) - reads/writes Outlook calendar
+- **owa-cal** (on PATH) - reads/writes Outlook calendar (delegates auth to owa-piggy)
+
+## Profiles
+
+did reads from one specific Outlook calendar. Use the `owa-cal --profile` flag that matches the account did is configured for. When in doubt, use the default (no flag = swon).
+
+| Profile   | Account                      |
+|-----------|------------------------------|
+| `swon`    | SoftwareOne (default, `*`)   |
+| `crayon`  | Crayon / Norconsult          |
+| `brkh`    | BRKH                         |
+| `dno`     | dno                          |
+
+When the user says "my Crayon timesheet" or "Norconsult hours" - use `--profile crayon`. For SWON/default, omit the flag.
 
 ## Boot
 
 On every invocation:
 
 1. Check did-cli: `which did-cli`
-2. Check cal-cli: `which cal-cli`
+2. Check owa-cal: `which owa-cal`
 3. Quick auth check: `did-cli config` (verify DID_COOKIE is set)
 
-If auth is broken, tell the user to update their cookie:
+If did auth is broken:
 ```bash
 did-cli config --cookie "<value>"   # did session cookie
-cal-cli config --token "<value>"    # Outlook JWT token
+```
+
+If owa-cal auth is broken, invoke the `/calendar` skill or run:
+```bash
+owa-cal refresh
+owa-piggy reseed   # if 24h hard-expiry
 ```
 
 ## Core workflow
@@ -95,26 +113,32 @@ When reviewing, compare did hours against calendar events:
 # did view of the week
 did-cli report --week 16 --pretty
 
-# Calendar view of the same week
-cal-cli events --week 16 --pretty
+# Calendar view of the same week (use the profile that matches did's account)
+owa-cal events --week 16 --pretty
+owa-cal --profile crayon events --week 16 --pretty
 ```
 
 ### 3. Fix via calendar
 
-Since did is read-only, all fixes go through cal-cli (or invoke the /calendar skill for complex changes):
+Since did is read-only, all fixes go through owa-cal (or invoke the /calendar skill for complex changes):
 
 ```bash
 # Add missing category
-cal-cli update --id <event-id> --category "ProjectX"
+owa-cal update --id <event-id> --category "ProjectX"
 
 # Fix event times
-cal-cli update --id <event-id> --start 09:00 --end 11:00
+owa-cal update --id <event-id> --start 09:00 --end 11:00
 
 # Create missing event
-cal-cli create --subject "Deep work" --date 2026-04-14 --start 13:00 --end 15:00 --category "ProjectX"
+owa-cal create --subject "Deep work" --date 2026-04-14 --start 13:00 --end 15:00 --category "ProjectX"
 
 # Delete duplicate
-cal-cli delete --id <event-id>
+owa-cal delete --id <event-id>
+```
+
+Use `--profile <alias>` on all owa-cal commands when the relevant calendar is not the default:
+```bash
+owa-cal --profile crayon update --id <event-id> --category "NOCOS"
 ```
 
 For bulk calendar operations or complex changes, invoke the /calendar skill:
@@ -157,7 +181,7 @@ When the user invokes `/did` with no specific request:
 When the user asks to "review" or "check" their timesheet, do a side-by-side:
 
 1. Fetch did report for the period
-2. Fetch calendar events for the same date range
+2. Fetch calendar events for the same date range (`owa-cal events` with the matching profile)
 3. Compare and highlight:
    - Events in calendar but missing from did (category issue)
    - Hours mismatch between did and calendar
@@ -173,13 +197,13 @@ When the user asks to "review" or "check" their timesheet, do a side-by-side:
 
 ## Quick reference
 
-| Want to... | Command |
-|---|---|
-| See this week | `did-cli report --period current --pretty` |
-| See last week | `did-cli report --period last --pretty` |
-| Check status | `did-cli status --pretty` |
-| Submit current week | `did-cli submit --period current` |
-| See calendar for a day | `cal-cli events --date 2026-04-14 --pretty` |
-| Fix a category | `cal-cli update --id <id> --category "Cat"` |
-| List categories | `cal-cli categories` |
-| Add missing event | `cal-cli create --subject "..." --date ... --start ... --end ... --category "..."` |
+| Want to...              | Command |
+|-------------------------|---------|
+| See this week           | `did-cli report --period current --pretty` |
+| See last week           | `did-cli report --period last --pretty` |
+| Check status            | `did-cli status --pretty` |
+| Submit current week     | `did-cli submit --period current` |
+| See calendar for a day  | `owa-cal events --date 2026-04-14 --pretty` |
+| Fix a category          | `owa-cal update --id <id> --category "Cat"` |
+| List categories         | `owa-cal categories` |
+| Add missing event       | `owa-cal create --subject "..." --date ... --start ... --end ... --category "..."` |
