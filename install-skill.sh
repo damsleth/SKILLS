@@ -15,6 +15,12 @@ TARGETS=(
     "$HOME/.copilot/skills"
 )
 
+# Optional targets: only added when the parent dir already exists.
+# Avoids creating tool dirs for tools the user hasn't installed.
+for optional in "$HOME/.agents" "$HOME/.pi"; do
+    [ -d "$optional" ] && TARGETS+=("$optional/skills")
+done
+
 # ── Discover skills (subfolders containing SKILL.md) ──
 
 SKILL_NAMES=()

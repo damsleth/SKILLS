@@ -1,7 +1,7 @@
 ---
 name: calendar
-description: Manage Outlook/Microsoft 365 calendar events. Wraps cal-cli for listing, creating, updating, and deleting events. Supports JWT, cookie, and OAuth auth. Use when the user asks about their calendar, schedule, meetings, or events.
-version: 2.1.0
+description: Manage Outlook/Microsoft 365 calendar events. Wraps owa-cal for listing, creating, updating, and deleting events. Auth is handled by owa-piggy. Use when the user asks about their calendar, schedule, meetings, or events.
+version: 3.1.0
 author: damsleth
 allowed-tools:
   - Bash
@@ -18,85 +18,83 @@ tags:
 
 # Calendar Skill
 
-Manage the user's Outlook / Microsoft 365 calendar. Wraps `cal-cli` (on PATH).
+Manage the user's Outlook / Microsoft 365 calendar via `owa-cal`, which delegates auth to `owa-piggy`.
 
-## Architecture
+## Profiles
 
+The user has multiple work accounts, each mapped to an `owa-piggy` profile. **Always infer the profile from context.**
+
+| Profile   | Account / context                          |
+|-----------|--------------------------------------------|
+| `swon`    | SoftwareOne (default, `*`)                 |
+| `crayon`  | Crayon / Norconsult work                   |
+| `brkh`    | BRKH (Røde Kors volunteer role)            |
+| `dno`     | dno (personal or other)                    |
+
+Profile resolution rules:
+- If the user says "my crayon calendar", "Norconsult schedule", "NOCOS meeting" -> `--profile crayon`
+- If the user says "BRKH", "Røde Kors", "vaktgruppe" -> `--profile brkh`
+- If the user says "SoftwareOne", "SWON", or no profile hint -> default (no flag needed, swon is `*`)
+- When ambiguous and it matters, ask which calendar before running
+
+Pass `--profile <alias>` as the **first** argument after `owa-cal`:
+
+```bash
+owa-cal --profile crayon events --pretty
+owa-cal --profile brkh events --week 18 --pretty
+owa-cal events --pretty                            # uses default (swon)
 ```
-/calendar skill  -->  cal-cli  -->  Outlook REST API v2.0
-                                    Microsoft Graph v1.0 (OAuth mode)
+
+`--profile` overrides the config-pinned profile and `OWA_PROFILE` env var.
+
+## Auth
+
+`owa-cal` calls `owa-piggy` automatically on every command - no manual token handling needed unless something breaks.
+
+```bash
+owa-piggy status                                   # health of all profiles
+owa-piggy remaining                                # minutes left on current token
+owa-cal refresh                                    # force refresh, verify auth
+owa-piggy reseed [--profile <alias>]               # recover from 24h hard-expiry (headless)
+owa-piggy reseed --all                             # reseed every profile at once
+owa-piggy setup --profile <alias> --email <addr>   # first-time or re-auth (opens Edge)
 ```
 
-- **CLI**: `cal-cli` (must be on PATH)
-- **Auth** (tried in order):
-  1. **JWT token** from Outlook Web - grab from DevTools, ~65 min lifetime, full permissions
-  2. **OAuth** via `get-token` CLI - automated flow, requires Calendars.ReadWrite scope
-  3. **Cookie** - full Cookie header from DevTools, longer-lived but messier
-- **Token refresh**: `cal-cli refresh` uses CDP (Chrome DevTools Protocol) to capture a fresh token from the running browser without user interaction. Requires browser started with `cal-cli setup` (one-time).
-- **Config**: `.env` in cal-cli's install directory (see `cal-cli config` for the resolved path)
-
-## Categories
-
-Categories are the bridge between the calendar and did. **Every work event should have a category** - it determines which project/customer the time gets billed to.
-
-- Categories are a string array on each event: `["CC LUNCH"]`
-- did reads categories to sort events into the correct project/customer
-- An event without a category is "uncategorized" in did
-- Category names are **case-sensitive** and must match what did expects
-- List available categories: `cal-cli categories`
-- **Always ask for a category** when creating work events if the user hasn't specified one
-- Don't ask for non-work events (lunch, personal blocks) unless the user has a category for them
-
-## did awareness
-
-did reads directly from this calendar - **the calendar IS the timesheet**:
-
-- Event categories map to did projects/customers
-- Modifying or deleting events affects timesheet data
-- Always confirm before bulk updates or deletions
-- The did CLI (`did-cli`) is the companion tool for timesheet review
+Token expiry has two rules:
+- **Sliding 24h window** - rotates on every use; `owa-cal refresh` handles this
+- **24h absolute hard-cap** (AADSTS700084) - run `owa-piggy reseed [--profile <alias>]`; if that fails, run `owa-piggy setup`
 
 ## Boot
 
 On every invocation:
 
-1. Verify cal-cli is available: `which cal-cli`
-2. Check auth status: `cal-cli config`
-3. If token is expired, try `cal-cli refresh` first (headless CDP refresh, no UI needed)
-4. If refresh fails (no CDP), fall back to `cal-cli login` (interactive, reads clipboard)
+1. `which owa-cal` - verify it's on PATH
+2. Infer profile from user's request (see Profiles table)
+3. Proceed directly - owa-piggy handles auth transparently
+4. If a command fails with a token error, run `owa-cal [--profile <alias>] refresh`; if that prints the 24h hard-expiry hint, run `owa-piggy reseed [--profile <alias>]`
 
-## Usage
-
-### Auth / Token management
-
-```bash
-cal-cli login               # Interactive: grabs JWT from clipboard or prompts for paste
-cal-cli setup               # One-time: restart browser with remote debugging (CDP port 9222)
-cal-cli refresh             # Headless: capture fresh token via CDP (no UI)
-```
-
-Typical flow when token expires:
-1. Try `cal-cli refresh` - works if browser was started with `cal-cli setup`
-2. If no CDP available, use `cal-cli login` - opens Outlook, reads clipboard
+## Commands
 
 ### List events
 
 ```bash
-cal-cli events --pretty                          # today
-cal-cli events --date tomorrow --pretty          # tomorrow
-cal-cli events --week 16 --pretty                # ISO week 16
-cal-cli events --from 2026-04-14 --to 2026-04-18 --pretty  # date range
-cal-cli events --search "standup" --pretty       # search by subject
+owa-cal [--profile <alias>] events --pretty                                    # today
+owa-cal [--profile <alias>] events --date tomorrow --pretty
+owa-cal [--profile <alias>] events --week 18 --pretty                          # ISO week
+owa-cal [--profile <alias>] events --from 2026-04-14 --to 2026-04-18 --pretty
+owa-cal [--profile <alias>] events --search "standup" --pretty
+owa-cal [--profile <alias>] events --limit 100 --pretty                        # override default 50
 ```
 
-Default output is JSON (pipe-friendly). Add `--pretty` for human-readable tables.
+Default output is JSON. `--pretty` gives a human-readable table.
 
 ### Create event
 
 ```bash
-cal-cli create --subject "lunsj" --start 11:00 --end 11:30 --category "CC LUNCH"
-cal-cli create --subject "Standup" --date tomorrow --start 09:00 --end 09:30
-cal-cli create --subject "Deep work" --start 13:00 --end 15:00 --showas busy
+owa-cal [--profile <alias>] create --subject "lunsj" --start 11:00 --end 11:30 --category "CC LUNCH"
+owa-cal [--profile <alias>] create --subject "Standup" --date tomorrow --start 09:00 --end 09:30
+owa-cal [--profile <alias>] create --subject "Deep work" --start 13:00 --end 15:00 --showas busy
+owa-cal [--profile <alias>] create --subject "Day off" --allday
 ```
 
 Defaults: date=today, start=09:00, end=10:00, timezone=W. Europe Standard Time
@@ -104,47 +102,55 @@ Defaults: date=today, start=09:00, end=10:00, timezone=W. Europe Standard Time
 ### Update event
 
 ```bash
-cal-cli update --id <event-id> --subject "New title"
-cal-cli update --id <event-id> --category "ProjectX"
-cal-cli update --id <event-id> --start 14:00 --end 15:00
-cal-cli update --id <event-id> --date 2026-04-15   # moves to new date, keeps times
+owa-cal [--profile <alias>] update --id <event-id> --subject "New title"
+owa-cal [--profile <alias>] update --id <event-id> --category "ProjectX"
+owa-cal [--profile <alias>] update --id <event-id> --start 14:00 --end 15:00
+owa-cal [--profile <alias>] update --id <event-id> --date 2026-04-15
 ```
 
-Update is smart about partial changes - changing just date, just start time, or just end time preserves the other components from the existing event.
+Partial updates are safe - only the supplied fields change.
 
 ### Delete event
 
 ```bash
-cal-cli delete --id <event-id>           # interactive confirm
-cal-cli delete --id <event-id> --confirm # skip confirmation
+owa-cal [--profile <alias>] delete --id <event-id>           # prompts for confirmation
+owa-cal [--profile <alias>] delete --id <event-id> --confirm # skip prompt
 ```
 
 ### Categories
 
 ```bash
-cal-cli categories              # list all
-cal-cli categories --add "NewCat"  # add new
+owa-cal [--profile <alias>] categories              # list all (JSON)
+owa-cal [--profile <alias>] categories --pretty     # list all (table)
+owa-cal [--profile <alias>] categories --add "NewCat"
 ```
 
 ### Config
 
 ```bash
-cal-cli config                              # show current
-cal-cli config --token "eyJ..."             # set JWT
-cal-cli config --cookie "ClientId=...; ..." # set cookie
-cal-cli config --oauth 1                    # enable OAuth
+owa-cal config                              # show config path and current settings
+owa-cal config --profile <alias>            # pin a default owa-piggy profile
+owa-cal config --app-client-id <id>         # set app registration client ID (optional)
 ```
+
+## Categories and did
+
+Categories link calendar events to billing projects. **Every work event should have a category.**
+
+- Categories are a string array on each event: `["CC LUNCH"]`
+- `did` reads categories to sort events into the correct project/customer
+- Category names are **case-sensitive**
+- Always ask for a category when creating work events if the user hasn't specified one
+- Skip asking for non-work events (personal blocks, lunch) unless the user wants one
+
+Modifying or deleting events affects timesheet data - confirm before bulk changes.
 
 ## Presentation
 
-When showing events to the user (from `--pretty` output or your own formatting):
-
-- Format times in 24h format (e.g. 09:00-10:00)
-- Group by day if spanning multiple days
+- Times in 24h format (09:00-10:00)
+- Group by day for multi-day ranges
 - Show: time, subject, location (if set), categories (if set)
-- Compact table or list - not verbose JSON
-
-Example:
+- Compact table - not verbose JSON
 
 ```
 2026-04-14
@@ -156,26 +162,19 @@ Example:
 
 ## Safety rules
 
-1. **Never delete events without explicit user confirmation**
-2. **Never bulk-modify more than 5 events** without listing and getting approval
-3. **Warn if creating events in the past**
-4. **Warn if creating overlapping events** - check existing events first
-5. **Remember did**: modifications affect the timesheet
-6. **Always verify dates** - when creating events for "this week" or similar relative ranges, compute the actual calendar dates first (use `python3` or `date` to confirm day-of-week). Never assume date-to-weekday mappings.
-
-## Workflow
-
-When the user invokes `/calendar`:
-
-1. Run boot (check cal-cli, check auth)
-2. If no specific request, show today's events
-3. For modifications, show what will change before applying
-4. After creating/updating, show the result
-5. For batch operations, list all changes and confirm before executing
+1. Never delete events without explicit user confirmation
+2. Never bulk-modify more than 5 events without listing and getting approval
+3. Warn if creating events in the past
+4. Warn if creating overlapping events - check existing events first
+5. Always verify dates - compute actual calendar dates from relative terms (`python3` or `date`)
 
 ## Error handling
 
-- **Token expired**: Run `cal-cli refresh` first. If that fails, fall back to `cal-cli login`
-- **401/403**: Auth issue, check `cal-cli config`
-- **404**: Wrong event ID
-- **429**: Rate limited, wait and retry
+| Error | Action |
+|-------|--------|
+| Token expired (sliding) | `owa-cal [--profile <alias>] refresh` |
+| AADSTS700084 / 24h hard-expiry | `owa-piggy reseed [--profile <alias>]` |
+| reseed fails | `owa-piggy setup --profile <alias> --email <addr>` |
+| 401/403 | `owa-piggy status` + `owa-cal config` |
+| 404 | Wrong event ID |
+| 429 | Rate limited - wait and retry |
