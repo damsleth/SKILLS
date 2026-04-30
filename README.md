@@ -14,6 +14,7 @@ A collection of skills for AI coding agents (Claude Code, Codex, Copilot). Each 
 | **notes** | Capture notes to Obsidian and sync structured memory to a cognitive ledger |
 | **things3-read-tasks** | Read and search Things3 tasks via things-cli |
 | **ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline |
+| **yaams** | Query personal memory for context about people, projects, decisions, and history |
 
 ## Install
 
