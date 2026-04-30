@@ -5,7 +5,7 @@ description: Interactive meeting notes skill for preparing, running, and documen
 
 # Møtenotater (meeting-notes)
 
-An interactive skill for preparing, conducting, and documenting meetings. The skill fetches meetings via `cal-cli` (Outlook / Microsoft 365), collects participant info from the user, researches externals, and produces clean markdown meeting notes with live note-taking support.
+An interactive skill for preparing, conducting, and documenting meetings. The skill fetches meetings via `owa-cal` (Outlook / Microsoft 365), collects participant info from the user, researches externals, and produces clean markdown meeting notes with live note-taking support.
 
 All user-facing communication MUST be in Norwegian (Bokmål). Internal comments, code, and SKILL.md itself are in English.
 
@@ -13,7 +13,7 @@ All user-facing communication MUST be in Norwegian (Bokmål). Internal comments,
 
 The workflow has these phases:
 
-1. **Calendar lookup** — Fetch the user's meetings for the next 7 days via `cal-cli`
+1. **Calendar lookup** — Fetch the user's meetings for the next 7 days via `owa-cal`
 2. **Meeting selection** — User picks which meeting to document
 3. **Participant research** — Collect attendees from the user, then look up externals via web search
 4. **File setup** — Create the markdown meeting notes file (with optional template)
@@ -30,17 +30,17 @@ If calendar access fails, fall back to manual meeting input.
 
 The user's email is available in the session context (typically a `userEmail` block in CLAUDE.md). Extract the domain part (after `@`) — this is the organization domain used to classify attendees as intern/ekstern. If unavailable, ask the user.
 
-### Step 2: Fetch meetings with cal-cli
+### Step 2: Fetch meetings with owa-cal
 
 Compute the date range (today through today + 7 days) and run:
 
 ```bash
-cal-cli events --from <YYYY-MM-DD> --to <YYYY-MM-DD> --limit 50
+owa-cal events --from <YYYY-MM-DD> --to <YYYY-MM-DD> --limit 50
 ```
 
 Output is a JSON array. Each event has: `id`, `subject`, `start`, `end`, `categories`, `location`, `showAs`, `isAllDay`.
 
-**Note:** `cal-cli` does not return attendees. Participant info is collected from the user in Phase 3.
+**Note:** `owa-cal` does not return attendees. Participant info is collected from the user in Phase 3.
 
 ### Step 3: Filter the results
 
@@ -54,7 +54,7 @@ The remaining events are the candidates for the meeting picker.
 
 ### Manual Fallback
 
-If `cal-cli` fails or returns no usable meetings, tell the user (in Norwegian):
+If `owa-cal` fails or returns no usable meetings, tell the user (in Norwegian):
 
 > Kunne ikke hente kalenderdata. La oss legge inn møteinfo manuelt.
 
@@ -89,7 +89,7 @@ Present the choices interactively so the user can pick one by number or title.
 
 ## Phase 3: Participant Research
 
-Once a meeting is selected, ask the user for the attendee list (since `cal-cli` doesn't expose attendees):
+Once a meeting is selected, ask the user for the attendee list (since `owa-cal` doesn't expose attendees):
 
 > Hvem deltar på møtet? Lim inn navn og e-postadresser, eller bare navn hvis du ikke har e-post.
 

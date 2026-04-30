@@ -21,34 +21,61 @@ Capture notes and maintain structured long-term memory across two repositories:
 - **Ledger Root** (repo, config, scripts): `$LEDGER_ROOT`
 - **Ledger Notes** (atomic, searchable memory): `$LEDGER_NOTES_DIR`
 
-> **Setup:** On first run the skill will ask for your `ledger_root` path and save it to `~/.config/cognitive-ledger/config.yaml`. All other paths are read from `{ledger_root}/config.yaml`.
+> **Setup:** On first run the skill will install the `cognitive-ledger` package via Homebrew (if needed) and run `ledger init` to scaffold the notes tree and `config.yaml`.
 
 ### Path Resolution
 
-The only value that must be bootstrapped is `LEDGER_ROOT`. Everything else comes from `config.yaml` inside it.
+`LEDGER_ROOT` is the config directory (default: `~/.config/cognitive-ledger`). It holds `config.yaml`, `templates/`, `schema.yaml`, and the bootstrap pointer to the user's notes dirs. Code (the `ledger` and `sheep` CLIs) lives in the Homebrew install, not in `LEDGER_ROOT`.
 
-**To find `LEDGER_ROOT`** - use ONLY the Read tool, no Bash:
-1. Read `~/.config/cognitive-ledger/config.yaml`. If it exists and contains `ledger_root`, use that value.
-2. If that fails, ask the user for the path to their cognitive-ledger repo, then write it to `~/.config/cognitive-ledger/config.yaml` so it's never needed again:
-   ```yaml
-   ledger_root: /path/to/cognitive-ledger
-   ```
+**To resolve paths** - use ONLY the Read tool, no Bash:
+1. Read `~/.config/cognitive-ledger/config.yaml`. If it exists and has `ledger_notes_dir` + `source_notes_dir`, treat `~/.config/cognitive-ledger` as `LEDGER_ROOT` and extract the other two values. You're done.
+2. If the file is missing or incomplete, run the **Install + Onboarding Flow** below.
 
 Never run a Bash command to check or echo environment variables. The Read tool is sufficient and requires no user approval.
 
-**Once `LEDGER_ROOT` is known**, check whether `$LEDGER_ROOT/config.yaml` exists:
+Expand any `~` to the user's home directory. All subsequent operations use the resolved absolute paths.
 
-- **If it exists** - Read it with the Read tool and extract `ledger_notes_dir` and `source_notes_dir`.
-- **If it does not exist** - Onboarding flow:
-  1. Tell the user `config.yaml` is missing and that you'll create it from `config.sample.yaml`.
-  2. Ask for the three paths in one batch:
-     - `ledger_root` - path to this repo
-     - `ledger_notes_dir` - path to the atomic ledger notes directory
-     - `source_notes_dir` - path to the human-facing Obsidian notes directory
-  3. Read `$LEDGER_ROOT/config.sample.yaml`, substitute the provided values, and write the result to `$LEDGER_ROOT/config.yaml`.
-  4. Confirm the file was created before continuing.
+### Install + Onboarding Flow
 
-Expand any `~` to the user's home directory. All subsequent operations use these resolved paths.
+Trigger when `~/.config/cognitive-ledger/config.yaml` is missing or incomplete.
+
+**Step 1 - Ensure the `ledger` CLI is on PATH.**
+
+Run `command -v ledger`. If it returns a path, skip to Step 2.
+
+If missing:
+- Run `command -v brew`. If Homebrew isn't installed, stop and tell the user to install it first (https://brew.sh) - do not attempt to install Homebrew yourself.
+- Install the package:
+  ```bash
+  brew tap damsleth/tap
+  brew install cognitive-ledger
+  ```
+- Verify `command -v ledger` resolves before continuing.
+
+**Step 2 - Ask the user for the two notes-dir paths in one batch.**
+
+Offer sensible defaults the user can accept by hitting enter:
+- `ledger_notes_dir` - atomic ledger memory. Default: `~/ledger-notes`
+- `source_notes_dir` - human-facing Obsidian notes. Default: `~/notes`
+
+**Step 3 - Run init.** Scaffolds the notes tree (`01_identity/` … `09_archive/`), writes `config.yaml`, and emits templates + schema:
+
+```bash
+ledger init \
+  --root "$HOME/.config/cognitive-ledger" \
+  --ledger-notes-dir <path-from-step-2> \
+  --source-notes-dir <path-from-step-2>
+```
+
+**Step 4 - Persist `LEDGER_ROOT`** to the user's shell rc so the brew-installed CLIs find the config (otherwise they default to a read-only Cellar path):
+
+- Detect shell from `$SHELL` (`zsh` → `~/.zshrc`, `bash` → `~/.bashrc`, `fish` → `~/.config/fish/config.fish`).
+- Only append if the export line is not already present (`grep -q 'LEDGER_ROOT' <rc>`).
+- For zsh/bash: `echo 'export LEDGER_ROOT="$HOME/.config/cognitive-ledger"' >> <rc>`
+- For fish: `echo 'set -gx LEDGER_ROOT $HOME/.config/cognitive-ledger' >> <rc>`
+- Tell the user to `source` the rc file or open a new terminal for the export to take effect in their own shell. The skill itself can pass `LEDGER_ROOT=$HOME/.config/cognitive-ledger` inline when invoking `ledger`/`sheep` for the rest of the current session.
+
+**Step 5 - Re-read** `~/.config/cognitive-ledger/config.yaml` to resolve `ledger_notes_dir` and `source_notes_dir`, then continue with the boot sequence below.
 
 ## Boot Sequence (Run on Activation)
 
@@ -57,7 +84,7 @@ After resolving paths from `config.yaml`, use the literal resolved values - neve
 **Avoid `cd && <write-op>` compound commands** - they trigger a safety hook. Instead use absolute paths directly: `mv /abs/src/file1 /abs/src/file2 /abs/dest/`. For reading files, prefer the Read/Glob tools over `for f in ... head` bash loops.
 
 1. Use the Read tool on `{ledger_notes_dir}/08_indices/context.md` - essential facts, active loops, key preferences
-2. Run `./scripts/sheep status` from `{ledger_root}` - check if maintenance needed
+2. Run `sheep status` (no `cd` needed; the brew-installed CLI reads `LEDGER_ROOT` from env) - check if maintenance needed
 3. Use the Read tool on `{ledger_notes_dir}/01_identity/id__voice_dna.md` if it exists - apply voice profile when writing notes longer than 2 sentences
 
 **Two-tier lookup strategy:**
@@ -160,9 +187,9 @@ If multiple triggers occur, write multiple small notes rather than one large not
 After using a ledger note in a response, or when the user gives feedback:
 
 ```bash
-./scripts/ledger signal add --type retrieval_hit --query "<query>" --note <path>
-./scripts/ledger signal add --type correction --note <path> --detail "<what's wrong>"
-./scripts/ledger signal add --type affirmation --note <path>
+ledger signal add --type retrieval_hit --query "<query>" --note <path>
+ledger signal add --type correction --note <path> --detail "<what's wrong>"
+ledger signal add --type affirmation --note <path>
 ```
 
 Only capture when there is clear evidence. Do not log signals speculatively.
@@ -185,7 +212,7 @@ Only capture when there is clear evidence. Do not log signals speculatively.
 ### Query and Summarize
 
 - Start with ranked retrieval:
-  - `./scripts/ledger query "<topic>" --scope all --limit 8`
+  - `ledger query "<topic>" --scope all --limit 8`
   - Use `--scope personal|work|dev|home|meta` to constrain.
   - Use `--bundle` for compact citation-backed context packs.
 - Then use `rg` and `fd` for targeted follow-up.
@@ -210,11 +237,11 @@ Only capture when there is clear evidence. Do not log signals speculatively.
 If the user says "ingest this", "process this article/meeting/doc", or
 "distill this source":
 
-1. Run `./scripts/ledger ingest scan` to check source state
+1. Run `ledger ingest scan` to check source state
 2. Read the source content
 3. Create 3-8 atomic notes (one idea per file, proper frontmatter)
 4. Tag all notes with `ingested`
-5. Run `./scripts/ledger ingest record <source> <note1> [note2...]`
+5. Run `ledger ingest record <source> <note1> [note2...]`
 
 ## Answer Filing (Knowledge Compounding)
 
@@ -235,8 +262,8 @@ If the user says "what's on my plate", "brief me", "what needs doing",
 "morning", "status", or "what should I work on":
 
 ```bash
-./scripts/ledger briefing           # daily (default)
-./scripts/ledger briefing --weekly  # extended weekly review
+ledger briefing           # daily (default)
+ledger briefing --weekly  # extended weekly review
 ```
 
 The briefing surfaces:
@@ -262,26 +289,26 @@ Pull tasks early in planning conversations so the plan is grounded in actual due
 
 ## Electric Sheep (Maintenance)
 
-- Check status: `./scripts/sheep status`
-- Sync drift check: `./scripts/sheep sync --check`
-- Refresh sync baseline: `./scripts/sheep sync --apply`
-- Checklist only: `./scripts/sheep sleep`
-- Validate: `./scripts/sheep lint`
-- Regenerate indices: `./scripts/sheep index`
+- Check status: `sheep status`
+- Sync drift check: `sheep sync --check`
+- Refresh sync baseline: `sheep sync --apply`
+- Checklist only: `sheep sleep`
+- Validate: `sheep lint`
+- Regenerate indices: `sheep index`
 
 ### Automatic Maintenance Policy
 
 Before any operation that writes to the ledger:
 
-1. Run `./scripts/sheep status`.
-2. If status indicates sleep is due, run `./scripts/sheep sleep` and `./scripts/sheep index` before proceeding.
+1. Run `sheep status`.
+2. If status indicates sleep is due, run `sheep sleep` and `sheep index` before proceeding.
 3. Do not run sleep for pure query operations.
 
 ---
 
 ## Indices
 
-- Regenerate with `./scripts/sheep index` when asked.
+- Regenerate with `sheep index` when asked.
 - Treat regenerated indices as note updates and log them in the timeline.
 - Use JSON indices for machine consumption when relevant.
 
@@ -289,9 +316,10 @@ Before any operation that writes to the ledger:
 
 ## Working Directory
 
-The ledger repo lives at `$LEDGER_ROOT`. The ledger note corpus lives at `$LEDGER_NOTES_DIR`. Human notes live at `$LEDGER_SOURCE_NOTES_DIR`.
+`LEDGER_ROOT` is the config directory (`~/.config/cognitive-ledger` by default) - it holds `config.yaml`, `templates/`, and `schema.yaml`. The ledger note corpus lives at `LEDGER_NOTES_DIR`. Human notes live at `LEDGER_SOURCE_NOTES_DIR`. Code (the `ledger`/`sheep` CLIs) is installed via Homebrew and runs from `$PATH` - no `cd` into a code repo is needed.
 
-- If the user is working in another repository, temporarily `cd` to the target repo for operations, then return to the original working directory.
+- The `ledger` and `sheep` CLIs read `LEDGER_ROOT` from env. Run them from any cwd; do not `cd` into the config dir.
+- If the user is working in another repository, stay in that cwd - the CLIs operate on the resolved absolute paths.
 - Never modify unrelated repositories as part of note/ledger operations.
 
 ## Session Wrap-Up (Passive Capture)
