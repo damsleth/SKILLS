@@ -1,4 +1,4 @@
 interface:
   display_name: "Things3 Reader"
   short_description: "Search and read Things3 tasks with things-cli"
-  default_prompt: "Use $things3-read-tasks to find and summarize my Things3 tasks."
+  default_prompt: "Use $cj-things3-read-tasks to find and summarize my Things3 tasks."
