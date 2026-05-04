@@ -145,6 +145,46 @@ Categories link calendar events to billing projects. **Every work event should h
 
 Modifying or deleting events affects timesheet data - confirm before bulk changes.
 
+## Workday templates
+
+Encoded conventions for translating high-level user intent into concrete event creation. When the user says "I'll work Tuesday and Thursday at Norconsult next week", expand it via the matching template and create the events on each date - do not ask for times/categories that the template already specifies. Always confirm the resolved dates and the event list before creating.
+
+### Norconsult workday (`crayon` profile)
+
+```
+08:00-11:00  Norconsult     [NC NOCOS]
+11:00-11:30  Lunsj          [CC LUNCH]
+11:30-16:00  Norconsult     [NC NOCOS]
+```
+
+Triggers: "Norconsult day", "NC day", "jobbe på Norconsult", "Sandvika", "NOCOS-dag".
+
+### SoftwareOne home day (`swon` profile, default)
+
+```
+08:00-11:00  SWON           [Intern]
+11:00-11:30  Lunsj          [CC LUNCH]
+11:30-16:00  SWON           [Intern]
+```
+
+Triggers: "SWON day", "home day", "jobbe hjemme for SWON", "regular work day".
+
+### Day off / vacation
+
+```
+allday       Day off        [PTO]
+```
+
+Use `--allday` on `owa-cal create`. Triggers: "fri", "ferie", "day off", "PTO".
+
+### BRKH vakt
+
+Ad hoc - shifts vary. Ask for start/end and event type before creating. Profile: `brkh`. Default category: `Vakt`.
+
+### Bulk-week pattern
+
+When the user gives a week-shape ("Tuesday + Thursday at Norconsult, rest SWON, Friday off"), resolve each weekday to a date, pick the matching template per day, list the full plan back to the user, and create only after confirmation. Never silently create more than 5 events.
+
 ## Presentation
 
 - Times in 24h format (09:00-10:00)
