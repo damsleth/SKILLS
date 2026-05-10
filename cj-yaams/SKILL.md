@@ -91,7 +91,7 @@ yaams promote list               # what's pending review
 yaams promote review             # interactive: accept / edit / reject
 ```
 
-Accepted notes land in `~/code/ledger-notes/00_inbox/` for final human sign-off before entering Tier 2. Nothing is promoted without explicit acceptance.
+Accepted notes land in `~/brain/ledger/00_inbox/` for final human sign-off before entering Tier 2. Nothing is promoted without explicit acceptance.
 
 ## Stats and maintenance
 
@@ -104,6 +104,6 @@ yaams ingest --source imessage   # single source
 ## Notes
 
 - Installed via pipx - `yaams` runs anywhere without venv activation
-- DB is at `~/yaams/data.db` (single SQLite file, append-only)
+- DB is at `~/brain/yaams/data.db` (single SQLite file, append-only)
 - Config is at `~/code/YAAMS/config.yaml`
 - Two-tier architecture: YAAMS = Tier 1 (high volume), cognitive-ledger = Tier 2 (curated). Fused at query time with a small Tier 2 boost.
