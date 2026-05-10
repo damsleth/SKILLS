@@ -55,8 +55,8 @@ If missing:
 **Step 2 - Ask the user for the two notes-dir paths in one batch.**
 
 Offer sensible defaults the user can accept by hitting enter:
-- `ledger_notes_dir` - atomic ledger memory. Default: `~/ledger-notes`
-- `source_notes_dir` - human-facing Obsidian notes. Default: `~/notes`
+- `ledger_notes_dir` - atomic ledger memory. Default: `~/brain/ledger`
+- `source_notes_dir` - human-facing Obsidian notes. Default: `~/brain/vault`
 
 **Step 3 - Run init.** Scaffolds the notes tree (`01_identity/` … `09_archive/`), writes `config.yaml`, and emits templates + schema:
 
