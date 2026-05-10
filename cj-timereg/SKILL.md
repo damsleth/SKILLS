@@ -22,9 +22,9 @@ Sync hours from did into the legacy timereg.inmeta.com timesheet.
 ## Architecture
 
 ```
-Calendar (Outlook)  -- owa-cal -->  did  -- did-cli -->  timereg-cli  -->  timereg.inmeta.com
-                                     |
-                                     +-->  (future) xledger-cli, swondp-cli, ...
+Calendar (Outlook)  -- owa-cal (cj-owa-tools) -->  did  -- did-cli -->  timereg-cli  -->  timereg.inmeta.com
+                                                    |
+                                                    +-->  (future) xledger-cli, swondp-cli, ...
 ```
 
 `timereg-cli` is one leg of the fan-out from `did`. It reads confirmed did
