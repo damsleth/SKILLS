@@ -7,11 +7,11 @@ A collection of C.J.'s personal-but-shareable skills for AI coding agents (Claud
 | Skill | Description |
 |-------|-------------|
 | **cj-blog-damsleth-no** | Write blog post drafts with proper frontmatter and manifest updates |
-| **cj-calendar** | Manage Outlook/Microsoft 365 calendar events via cal-cli |
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
 | **cj-did** | Review and manage timesheets via did-cli, with calendar as source of truth |
 | **cj-meeting-notes** | Interactive meeting lifecycle: prep, live notes, and summary with action items |
 | **cj-notes** | Capture notes to Obsidian and sync structured memory to a cognitive ledger |
+| **cj-owa-tools** | Drive the Outlook / Microsoft 365 CLI suite (cal, mail, graph, doctor, people, sched, drive) and the owa-piggy auth broker |
 | **cj-things3-read-tasks** | Read and search Things3 tasks via things-cli |
 | **cj-ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline |
 | **cj-voice-dna** | Load and apply your writing voice profile before drafting public-facing text |
