@@ -130,7 +130,6 @@ owa-cal [--profile <alias>] categories --add "NewCat"
 ```bash
 owa-cal config                              # show config path and current settings
 owa-cal config --profile <alias>            # pin a default owa-piggy profile
-owa-cal config --app-client-id <id>         # set app registration client ID (optional)
 ```
 
 ## Categories and did
