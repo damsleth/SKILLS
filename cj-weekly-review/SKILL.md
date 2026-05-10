@@ -18,7 +18,13 @@ tags:
 
 # cj-weekly-review
 
-A structured ritual that pulls together tasks, calendar, timesheet, and open loops into one picture. Works in two modes:
+A structured ritual that pulls together tasks, calendar, timesheet, and open loops into one picture.
+
+**Adjacent:** `cj-owa-tools` for any calendar / mail / scheduling
+command (profile inference, auth troubleshooting, install). Don't
+re-derive those rules here.
+
+Works in two modes:
 
 - **Plan** (Monday / start of week) — what's coming, what needs scheduling, what to prioritize
 - **Review** (Friday / end of week) — what happened, what slipped, what carries forward
@@ -69,13 +75,14 @@ Don't dump the full backlog. Surface the 10-15 most actionable items.
 
 ## Step 2 - Calendar
 
-Fetch this week's events for each relevant account. Infer which profiles matter from context — if the user only mentions work, skip BRKH. When in doubt, pull the two primary work profiles.
+Fetch this week's events for each relevant profile (per `cj-owa-tools`
+inference rules - if the user only mentions work, skip BRKH; when in
+doubt, pull both work profiles).
 
 ```bash
-# Current week across accounts
-owa-cal events --week <n> --pretty                       # SWON (default)
-owa-cal --profile crayon events --week <n> --pretty      # Crayon/Norconsult
-owa-cal --profile brkh events --week <n> --pretty        # BRKH (if relevant)
+owa-cal events --week <n> --pretty                       # default (swon)
+owa-cal --profile crayon events --week <n> --pretty
+owa-cal --profile brkh events --week <n> --pretty        # if relevant
 ```
 
 Get the current ISO week number with `date +%V`.
@@ -183,14 +190,14 @@ Adapt the language to what the user uses — Norwegian if they're speaking Norwe
 - **Don't duplicate.** If something appears in both Things3 and the calendar, mention it once.
 - **Flag blockers explicitly.** If a loop or task is blocking something visible in the calendar, say so.
 - **Timesheet first on Thursday/Friday.** If the period isn't submitted and it's late in the week, lead with that nudge before the rest of the review.
-- **Offer to act.** After the brief, ask: "Vil du at jeg skal hjelpe med noe av dette nå?" This skill surfaces the picture — taking action uses the relevant sub-skills (`cj-calendar`, `cj-did`, `cj-notes`).
+- **Offer to act.** After the brief, ask: "Vil du at jeg skal hjelpe med noe av dette nå?" This skill surfaces the picture — taking action uses the relevant sub-skills (`cj-owa-tools`, `cj-did`, `cj-notes`).
 
 ---
 
 ## Integration with other skills
 
 After the brief, the user may want to:
-- Fix calendar entries → invoke `/cj-calendar`
+- Fix calendar entries → invoke `/cj-owa-tools`
 - Submit timesheet → invoke `/cj-did`
 - Log a decision or update an open loop → invoke `/cj-notes`
 - Take meeting notes for an upcoming meeting → invoke `/cj-meeting-notes`
