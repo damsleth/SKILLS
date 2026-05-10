@@ -20,6 +20,9 @@ tags:
 
 Review and manage timesheets via `did-cli` and `owa-cal`.
 
+**Adjacent:** `cj-owa-tools` for any calendar / owa-piggy command (profile
+inference, auth troubleshooting, install).
+
 ## Architecture
 
 ```
@@ -37,16 +40,10 @@ did (timesheet)     <-- did-cli (read-only view of calendar data)
 
 ## Profiles
 
-did reads from one specific Outlook calendar. Use the `owa-cal --profile` flag that matches the account did is configured for. When in doubt, use the default (no flag = swon).
-
-| Profile   | Account                      |
-|-----------|------------------------------|
-| `swon`    | SoftwareOne (default, `*`)   |
-| `crayon`  | Crayon / Norconsult          |
-| `brkh`    | BRKH                         |
-| `dno`     | dno                          |
-
-When the user says "my Crayon timesheet" or "Norconsult hours" - use `--profile crayon`. For SWON/default, omit the flag.
+did reads from one specific Outlook calendar. Match the `--profile <alias>`
+on every `owa-cal` call to that account. Profile inference, the swon/crayon/
+brkh/dno table, and `--profile` placement live in `cj-owa-tools` -
+default (no flag) = `swon` if nothing else is signalled.
 
 ## Boot
 
@@ -61,11 +58,8 @@ If did auth is broken:
 did-cli config --cookie "<value>"   # did session cookie
 ```
 
-If owa-cal auth is broken, invoke the `/cj-calendar` skill or run:
-```bash
-owa-cal refresh
-owa-piggy reseed   # if 24h hard-expiry
-```
+If owa-cal auth is broken, follow `cj-owa-tools` -> Auth via owa-piggy
+(or invoke the `/cj-owa-tools` skill directly).
 
 ## Core workflow
 
@@ -120,7 +114,7 @@ owa-cal --profile crayon events --week 16 --pretty
 
 ### 3. Fix via calendar
 
-Since did is read-only, all fixes go through owa-cal (or invoke the /cj-calendar skill for complex changes):
+Since did is read-only, all fixes go through owa-cal (or invoke the /cj-owa-tools skill for complex changes):
 
 ```bash
 # Add missing category
@@ -141,9 +135,9 @@ Use `--profile <alias>` on all owa-cal commands when the relevant calendar is no
 owa-cal --profile crayon update --id <event-id> --category "NOCOS"
 ```
 
-For bulk calendar operations or complex changes, invoke the /cj-calendar skill:
+For bulk calendar operations or complex changes, invoke the /cj-owa-tools skill:
 ```
-Use the Skill tool: skill: "cj-calendar"
+Use the Skill tool: skill: "cj-owa-tools"
 ```
 
 ### 4. Submit period
