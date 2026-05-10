@@ -1,6 +1,8 @@
 ---
 name: cj-meeting-notes
 description: Interactive meeting notes skill for preparing, running, and documenting meetings with automatic participant research. Use this skill whenever the user mentions meeting notes, meeting minutes, meeting prep, "møtenotater", "møtereferat", "møte", wants to prepare for a meeting, take notes during a meeting, or document what happened in a meeting. Also trigger when the user says "start møte", asks about upcoming meetings/calendar, or wants to look up info about meeting participants. This skill handles the full meeting lifecycle — from calendar lookup through live note-taking to final summary with action items.
+adjacent-skills:
+  - cj-owa-tools
 ---
 
 # Møtenotater (cj-meeting-notes)
@@ -10,6 +12,10 @@ An interactive skill for preparing, conducting, and documenting meetings. The sk
 All user-facing communication MUST be in Norwegian (Bokmål). Internal comments, code, and SKILL.md itself are in English.
 
 ## Overview
+
+**Tools used:** `owa-cal events` for calendar lookup. Profile resolution,
+auth, and any troubleshooting follow `cj-owa-tools` - do not duplicate
+those policies here.
 
 The workflow has these phases:
 
@@ -32,15 +38,9 @@ The user's email is available in the session context (typically a `userEmail` bl
 
 ### Step 2: Infer profile and fetch meetings with owa-cal
 
-Infer the owa-cal profile from the user's request:
-
-| User says...                              | Profile flag        |
-|-------------------------------------------|---------------------|
-| "Norconsult", "Crayon", "NOCOS"           | `--profile crayon`  |
-| "BRKH", "Røde Kors", "vaktgruppe"         | `--profile brkh`    |
-| "SoftwareOne", "SWON", no hint            | (none, default)     |
-
-If the user's request is ambiguous and they have meetings in multiple calendars, ask:
+Infer the `owa-cal` profile per `cj-owa-tools` inference rules. If the
+user's request is ambiguous and they have meetings in multiple calendars,
+ask:
 
 > Hvilken kalender skal jeg hente møter fra? (SWON, Crayon, BRKH, eller alle?)
 
