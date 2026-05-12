@@ -29,17 +29,11 @@ SKILL_PATHS=()
 
 # Scan both the repo root (public skills) and personal/ (gitignored).
 # personal/ is optional - the repo is public and most clones won't have one.
-# Stub-redirect skills (status: stub frontmatter) are hidden from the
-# picker - they exist only so cmd_install can refuse them with a clear
-# pointer to damsleth/SKILLS-private.
 shopt -s nullglob
 for dir in "$SCRIPT_DIR"/*/ "$SCRIPT_DIR"/personal/*/; do
     [ -f "$dir/SKILL.md" ] || continue
     name="$(basename "$dir")"
     [ "$name" = "personal" ] && continue
-    if grep -qE '^status:[[:space:]]*stub[[:space:]]*$' "$dir/SKILL.md"; then
-        continue
-    fi
     desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
     desc="${desc:-(no description)}"
     SKILL_NAMES+=("$name")
@@ -49,21 +43,11 @@ done
 shopt -u nullglob
 
 # Lookup a skill's source path by name (returns empty if not found).
-# Falls back to a direct disk check for stubs - those are hidden from
-# the discovered list but cmd_install needs to find them so it can
-# emit the friendly "this skill moved to SKILLS-private" message
-# instead of "Unknown skill".
 skill_path_by_name() {
     local want="$1" i
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
         if [ "${SKILL_NAMES[$i]}" = "$want" ]; then
             echo "${SKILL_PATHS[$i]}"
-            return 0
-        fi
-    done
-    for candidate in "$SCRIPT_DIR/$want" "$SCRIPT_DIR/personal/$want"; do
-        if [ -f "$candidate/SKILL.md" ]; then
-            echo "$candidate"
             return 0
         fi
     done
@@ -352,31 +336,12 @@ cmd_list() {
     done
 }
 
-is_stub() {
-    # Stubs left behind after a skill moves to SKILLS-private carry a
-    # `status: stub` line in their SKILL.md frontmatter. Refuse to
-    # install them so existing automation fails loudly instead of
-    # silently linking a redirect.
-    local skill_md="$1"
-    [ -f "$skill_md" ] && grep -qE '^status:[[:space:]]*stub[[:space:]]*$' "$skill_md"
-}
-
 cmd_install() {
     local name="$1"
     local src
     src="$(skill_path_by_name "$name")" || true
     if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
         echo "Unknown skill: $name" >&2; exit 1
-    fi
-    if is_stub "$src/SKILL.md"; then
-        local moved_to
-        moved_to=$(sed -n 's/^moved-to:[[:space:]]*//p' "$src/SKILL.md" | head -1)
-        moved_to="${moved_to:-damsleth/SKILLS-private}"
-        echo "Refusing to install '$name': this skill is a stub redirect." >&2
-        echo "  The real implementation lives in: $moved_to" >&2
-        echo "  Install it from there:" >&2
-        echo "    git clone git@github.com:$moved_to.git && cd $(basename "$moved_to") && ./install-skill.sh --install $name" >&2
-        exit 1
     fi
     for target_base in "${TARGETS[@]}"; do
         mkdir -p "$target_base"
