@@ -1,0 +1,4 @@
+interface:
+  display_name: "Todo"
+  short_description: "Quick repo-scoped todos & plans via the bundled todo script"
+  default_prompt: "Use $cj-todo to add, complete, or list my repo's todos and plans."

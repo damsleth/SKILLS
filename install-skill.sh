@@ -59,6 +59,36 @@ if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
     exit 1
 fi
 
+# ── Per-skill companion-CLI hooks ──
+#
+# A few skills ship a companion CLI that belongs on PATH; symlinking the
+# skill folder isn't enough. These hooks run the skill's own installer on
+# install and tear the CLI link down on uninstall. Keyed by skill name.
+# No-op for skills without a CLI.
+
+CLI_BIN_DIR="$HOME/.local/bin"
+
+skill_cli_install() {
+    local name="$1" src="$2"
+    case "$name" in
+        cj-todo) bash "$src/todo.sh" install "$CLI_BIN_DIR" 2>/dev/null || true ;;
+    esac
+}
+
+skill_cli_uninstall() {
+    local name="$1"
+    case "$name" in
+        cj-todo)
+            # Only remove the link if it actually points at our script.
+            local link="$CLI_BIN_DIR/todo"
+            if [ -L "$link" ] && [ "$(readlink "$link")" = "$(skill_path_by_name cj-todo)/todo.sh" ]; then
+                rm -f "$link"
+                echo "  Unlinked todo CLI ($link)"
+            fi
+            ;;
+    esac
+}
+
 # ── Check install state ──
 #
 # A skill can be in one of three states across the TARGETS dirs:
@@ -284,6 +314,7 @@ apply_changes() {
             done
             if [ $created -gt 0 ]; then
                 echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
+                skill_cli_install "$name" "$src"
                 changed=$((changed + 1))
             fi
         else
@@ -295,6 +326,7 @@ apply_changes() {
             done
             if [ $removed -gt 0 ]; then
                 echo -e "  ${RED}✗${RESET} Uninstalled ${BOLD}$name${RESET} ${DIM}(${removed} target(s))${RESET}"
+                skill_cli_uninstall "$name"
                 changed=$((changed + 1))
             fi
         fi
@@ -354,6 +386,7 @@ cmd_install() {
         fi
         ln -sfn "$src" "$link"
     done
+    skill_cli_install "$name" "$src"
     echo "Installed: $name"
 }
 
@@ -366,6 +399,7 @@ cmd_uninstall() {
             removed=$((removed + 1))
         fi
     done
+    skill_cli_uninstall "$name"
     if [ $removed -gt 0 ]; then
         echo "Uninstalled: $name"
     else
