@@ -12,10 +12,17 @@ does all the mechanical CRUD against `<repo-root>/.plans/`; your job is to (1) c
 with the right command and (2) decide whether something is a quick todo or warrants a
 plan. Stay terse — the whole point is speed.
 
-Storage (per git repo):
-- `.plans/TODO.md` — open work (todos + one index line per plan)
-- `.plans/DONE.md` — completed items, archived with a date
-- `.plans/<slug>.md` — a detail file per plan
+Storage (per git repo). It's **filesystem-first** — plans are just files, so
+hand-maintained `.plans/` dirs work without conversion:
+- `.plans/TODO.md` — open one-line todos (`- [ ]` checkboxes)
+- `.plans/DONE.md` — completed todos, archived with a date
+- `.plans/<name>.md` — one file per plan; the file *is* the unit of work
+- `.plans/done/` — completed plans (files moved here)
+
+`todo` lists every `.plans/*.md` file as a plan, whether the script created it
+or someone dropped it in by hand. It deliberately does **not** parse prose
+bullets or numbered lists into todos, so a narrative `TODO.md` that just indexes
+or orders plan files is left untouched.
 
 ## The script
 
@@ -25,10 +32,10 @@ script by path (`./todo.sh` inside this skill folder, or wherever it's installed
 ```bash
 todo                  # list open todos & plans (default)
 todo add "<text>"     # add a todo
-todo plan "<name>"    # create a plan file + index it; prints the file path
-todo done <n>         # complete item #n (moves it to DONE.md)
-todo rm <n>           # delete item #n without archiving
-todo log              # show completed items
+todo plan "<name>"    # create a plan file (.plans/<slug>.md); prints the path
+todo done <n>         # complete #n (todo → DONE.md, plan file → .plans/done/)
+todo rm <n>           # delete #n (todo line, or plan file)
+todo log              # show completed todos & plans
 todo where            # print the .plans directory
 todo install          # symlink the script as `todo` on PATH (~/.local/bin)
 ```
@@ -50,16 +57,19 @@ one-liner.
 ## Workflow
 
 1. **Add a todo** — `todo add "<concise task>"`. Keep the text short and imperative.
-2. **Add a plan** — `todo plan "<name>"`, then open the printed file and fill in the
-   `## Goal` / `## Steps` / `## Notes` sections with a real, actionable plan based on
-   what the user described. Leave a useful skeleton, not lorem ipsum.
+2. **Add a plan** — `todo plan "<name>"` creates `.plans/<slug>.md`; open the printed
+   file and fill in the `## Goal` / `## Steps` / `## Notes` sections with a real,
+   actionable plan based on what the user described. Leave a useful skeleton, not lorem
+   ipsum. (Completing a plan later moves the whole file into `.plans/done/`.)
 3. **Complete / remove** — run `todo` to see numbers, then `todo done <n>` (or `rm`).
 4. **Review** — `todo` for open work, `todo log` for finished work.
 
 ## Guardrails
 
 - Don't hand-edit `TODO.md` / `DONE.md` for add/done/rm — use the script so numbering
-  and archiving stay consistent. You *may* edit a plan's own `.plans/<slug>.md` freely.
+  and archiving stay consistent. You *may* edit a plan's own `.plans/<name>.md` freely.
+- `todo rm <n>` on a plan **deletes the file**; `todo done <n>` archives it to
+  `.plans/done/`. Prefer `done` unless the user wants it gone for good.
 - Keep responses tight: confirm the action in a line or two, don't restate the whole list
   unless asked.
 - The store is per-repo (resolved via `git rev-parse --show-toplevel`, falling back to the

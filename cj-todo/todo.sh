@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # todo — the world's most lightweight repo-scoped todo & plan tracker.
 #
-# Storage (per repo, under <repo-root>/.plans/):
-#   TODO.md   — open work (todos + plan index lines)
-#   DONE.md   — completed items, archived with a date
-#   <slug>.md — one detail file per plan
+# Filesystem-first, so it works with hand-maintained .plans/ dirs too:
+#   <repo>/.plans/TODO.md    — open one-line todos (- [ ] checkboxes)
+#   <repo>/.plans/DONE.md    — completed todos, archived with a date
+#   <repo>/.plans/<name>.md  — one file per plan (the file *is* the unit of work)
+#   <repo>/.plans/done/      — completed plans (files moved here)
 #
-# A plan index line looks like:  - [ ] <name> → .plans/<slug>.md
-# Anything matching "→ .plans/" is treated as a plan for display.
+# Listing shows open todos + every plan file in .plans/. It deliberately does
+# NOT turn prose bullets or numbered lists into todos, so narrative TODO.md
+# files (an index/ordering of plan files) are left untouched.
 
 set -euo pipefail
 
@@ -22,14 +24,13 @@ fi
 die() { echo "${RED}error:${RESET} $*" >&2; exit 1; }
 
 # ── locate repo root & storage ──
-repo_root() {
-  git rev-parse --show-toplevel 2>/dev/null || pwd
-}
+repo_root() { git rev-parse --show-toplevel 2>/dev/null || pwd; }
 
 ROOT="$(repo_root)"
 PLANS_DIR="$ROOT/.plans"
 TODO_FILE="$PLANS_DIR/TODO.md"
 DONE_FILE="$PLANS_DIR/DONE.md"
+DONE_DIR="$PLANS_DIR/done"
 
 ensure_store() {
   mkdir -p "$PLANS_DIR"
@@ -49,14 +50,48 @@ slugify() {
 # Strip leading "- [ ] " / "- [x] " checkbox markup from a line.
 strip_box() { sed -E 's/^- \[[ xX]\] //'; }
 
+# A plan's display title: its first "# " heading, else the filename.
+plan_title() {
+  local f="$1" t
+  t="$(grep -m1 -E '^#+ ' "$f" 2>/dev/null | sed -E 's/^#+ +//')"
+  [ -n "$t" ] || t="$(basename "$f" .md)"
+  printf '%s' "$t"
+}
+
+# Emit one TSV record per open item, in display order:
+#   todo<TAB><line-number-in-TODO.md><TAB><task text>
+#   plan<TAB><relative path><TAB><plan title>
+enumerate() {
+  ensure_store
+  # Open todos: "- [ ]" lines, skipping legacy "→ .plans/" index lines
+  # (the file scan below is the source of truth for plans).
+  if [ -f "$TODO_FILE" ]; then
+    grep -nE '^- \[ \] ' "$TODO_FILE" 2>/dev/null | while IFS=: read -r ln rest; do
+      local text; text="$(printf '%s' "$rest" | strip_box)"
+      case "$text" in *"→ .plans/"*) continue ;; esac
+      printf 'todo\t%s\t%s\n' "$ln" "$text"
+    done || true   # grep exits 1 when there are no todos; don't abort under set -e
+  fi
+  # Plans: top-level *.md files in .plans/ (not TODO.md/DONE.md, not subdirs).
+  local f base
+  for f in "$PLANS_DIR"/*.md; do
+    [ -e "$f" ] || continue
+    base="$(basename "$f")"
+    case "$base" in TODO.md|DONE.md) continue ;; esac
+    printf 'plan\t%s\t%s\n' ".plans/$base" "$(plan_title "$f")"
+  done
+}
+
+# The Nth enumerated record (1-based).
+nth_record() { enumerate | sed -n "${1}p"; }
+
 # ── commands ──
 
 cmd_add() {
   [ "$#" -gt 0 ] || die "nothing to add. usage: todo add \"task text\""
   ensure_store
-  local text="$*"
-  printf -- '- [ ] %s\n' "$text" >> "$TODO_FILE"
-  echo "${GREEN}+${RESET} $text"
+  printf -- '- [ ] %s\n' "$*" >> "$TODO_FILE"
+  echo "${GREEN}+${RESET} $*"
 }
 
 cmd_plan() {
@@ -66,93 +101,86 @@ cmd_plan() {
   local slug; slug="$(slugify "$name")"
   [ -n "$slug" ] || die "could not derive a filename from \"$name\""
   local file="$PLANS_DIR/$slug.md"
-  local rel=".plans/$slug.md"
   if [ -f "$file" ]; then
-    echo "${YELLOW}plan already exists:${RESET} $rel"
+    echo "${YELLOW}plan already exists:${RESET} .plans/$slug.md"
   else
     {
       printf '# %s\n\n' "$name"
       printf '_Created %s_\n\n' "$(today)"
       printf '## Goal\n\n\n## Steps\n\n- [ ] \n\n## Notes\n\n'
     } > "$file"
-    printf -- '- [ ] %s → %s\n' "$name" "$rel" >> "$TODO_FILE"
-    echo "${GREEN}+${RESET} plan: $name ${DIM}($rel)${RESET}"
+    echo "${GREEN}+${RESET} plan: $name ${DIM}(.plans/$slug.md)${RESET}"
   fi
   echo "$file"
 }
 
-# List open items, numbered. Plans get a [plan] tag.
 cmd_list() {
-  ensure_store
-  local n=0 found=0
-  while IFS= read -r line; do
-    n=$((n + 1)); found=1
-    local text; text="$(printf '%s' "$line" | strip_box)"
-    if printf '%s' "$text" | grep -q '→ .plans/'; then
-      local title="${text%% → *}"
-      local ref="${text##* → }"
+  local n=0 kind target display
+  while IFS=$'\t' read -r kind target display; do
+    n=$((n + 1))
+    if [ "$kind" = plan ]; then
       printf '  %s%2d.%s [ ] %s %s[plan]%s %s%s%s\n' \
-        "$BOLD" "$n" "$RESET" "$title" "$CYAN" "$RESET" "$DIM" "$ref" "$RESET"
+        "$BOLD" "$n" "$RESET" "$display" "$CYAN" "$RESET" "$DIM" "$target" "$RESET"
     else
-      printf '  %s%2d.%s [ ] %s\n' "$BOLD" "$n" "$RESET" "$text"
+      printf '  %s%2d.%s [ ] %s\n' "$BOLD" "$n" "$RESET" "$display"
     fi
-  done < <(grep -E '^- \[ \] ' "$TODO_FILE" || true)
-  if [ "$found" -eq 0 ]; then
-    echo "${DIM}no open todos in ${TODO_FILE/#$HOME/\~}${RESET}"
+  done < <(enumerate)
+  if [ "$n" -eq 0 ]; then
+    echo "${DIM}no open todos or plans in ${PLANS_DIR/#$HOME/\~}${RESET}"
   fi
-}
-
-# Resolve the Nth open item's line number in TODO_FILE.
-nth_line_no() {
-  local idx="$1"
-  grep -nE '^- \[ \] ' "$TODO_FILE" | sed -n "${idx}p" | cut -d: -f1
 }
 
 cmd_done() {
   [ "$#" -gt 0 ] || die "which one? usage: todo done <number>"
-  ensure_store
-  local idx="$1"
-  [[ "$idx" =~ ^[0-9]+$ ]] || die "expected a number, got \"$idx\""
-  local lineno; lineno="$(nth_line_no "$idx" || true)"
-  [ -n "$lineno" ] || die "no open todo #$idx (run 'todo' to see the list)"
-
-  local raw; raw="$(sed -n "${lineno}p" "$TODO_FILE")"
-  local text; text="$(printf '%s' "$raw" | strip_box)"
-
-  # archive
-  printf -- '- [x] %s (%s)\n' "$text" "$(today)" >> "$DONE_FILE"
-  # remove from TODO
-  sed -i.bak "${lineno}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
-  echo "${GREEN}✓${RESET} done: ${text%% → *}"
+  [[ "$1" =~ ^[0-9]+$ ]] || die "expected a number, got \"$1\""
+  local rec; rec="$(nth_record "$1")"
+  [ -n "$rec" ] || die "no open item #$1 (run 'todo' to see the list)"
+  local kind target display
+  IFS=$'\t' read -r kind target display <<<"$rec"
+  if [ "$kind" = plan ]; then
+    mkdir -p "$DONE_DIR"
+    mv "$PLANS_DIR/$(basename "$target")" "$DONE_DIR/"
+    echo "${GREEN}✓${RESET} done: $display ${DIM}(plan → .plans/done/)${RESET}"
+  else
+    printf -- '- [x] %s (%s)\n' "$display" "$(today)" >> "$DONE_FILE"
+    sed -i.bak "${target}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
+    echo "${GREEN}✓${RESET} done: $display"
+  fi
 }
 
 cmd_rm() {
   [ "$#" -gt 0 ] || die "which one? usage: todo rm <number>"
-  ensure_store
-  local idx="$1"
-  [[ "$idx" =~ ^[0-9]+$ ]] || die "expected a number, got \"$idx\""
-  local lineno; lineno="$(nth_line_no "$idx" || true)"
-  [ -n "$lineno" ] || die "no open todo #$idx"
-  local raw; raw="$(sed -n "${lineno}p" "$TODO_FILE")"
-  local text; text="$(printf '%s' "$raw" | strip_box)"
-  sed -i.bak "${lineno}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
-  echo "${RED}✗${RESET} removed: ${text%% → *}"
+  [[ "$1" =~ ^[0-9]+$ ]] || die "expected a number, got \"$1\""
+  local rec; rec="$(nth_record "$1")"
+  [ -n "$rec" ] || die "no open item #$1"
+  local kind target display
+  IFS=$'\t' read -r kind target display <<<"$rec"
+  if [ "$kind" = plan ]; then
+    rm -f "$PLANS_DIR/$(basename "$target")"
+    echo "${RED}✗${RESET} removed plan file: $display ${DIM}($target)${RESET}"
+  else
+    sed -i.bak "${target}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
+    echo "${RED}✗${RESET} removed: $display"
+  fi
 }
 
 cmd_log() {
   ensure_store
-  if grep -qE '^- \[x\] ' "$DONE_FILE"; then
-    grep -E '^- \[x\] ' "$DONE_FILE" | strip_box | while IFS= read -r l; do
-      printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$l"
+  local shown=0 l f
+  while IFS= read -r l; do
+    printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$l"; shown=1
+  done < <(grep -E '^- \[x\] ' "$DONE_FILE" 2>/dev/null | strip_box)
+  if [ -d "$DONE_DIR" ]; then
+    for f in "$DONE_DIR"/*.md; do
+      [ -e "$f" ] || continue
+      printf '  %s✓%s %s %s[plan]%s\n' "$GREEN" "$RESET" "$(plan_title "$f")" "$CYAN" "$RESET"
+      shown=1
     done
-  else
-    echo "${DIM}nothing completed yet${RESET}"
   fi
+  [ "$shown" -eq 0 ] && echo "${DIM}nothing completed yet${RESET}"
 }
 
-cmd_where() {
-  echo "$PLANS_DIR"
-}
+cmd_where() { echo "$PLANS_DIR"; }
 
 # Symlink this script onto PATH as `todo`.
 cmd_install() {
@@ -160,7 +188,6 @@ cmd_install() {
   local bindir="${1:-$HOME/.local/bin}"
   local target="$bindir/todo"
   mkdir -p "$bindir"
-  # Never clobber a real file living exactly where our link would go.
   if [ -e "$target" ] && [ ! -L "$target" ]; then
     echo "${YELLOW}note:${RESET} $target already exists and is not a symlink — leaving it alone."
     echo "      run this script as ./todo.sh, or remove that file and re-run 'todo install'."
@@ -186,13 +213,15 @@ ${BOLD}todo${RESET} — repo-scoped todos & plans (stored in ${DIM}<repo>/.plans
 ${BOLD}usage${RESET}
   todo                       list open todos & plans (default)
   todo add "<text>"          add a todo
-  todo plan "<name>"         create a plan file + index it
-  todo done <n>              complete item #n (archives to DONE.md)
-  todo rm <n>                delete item #n without archiving
-  todo log                   show completed items
+  todo plan "<name>"         create a plan file (.plans/<slug>.md)
+  todo done <n>              complete item #n (todo → DONE.md, plan → .plans/done/)
+  todo rm <n>                delete item #n (todo line, or plan file)
+  todo log                   show completed todos & plans
   todo where                 print the .plans directory path
   todo install [bindir]      symlink this script as 'todo' (default ~/.local/bin)
   todo help                  this help
+
+${DIM}Plans are just .md files in .plans/ — drop files in by hand and they show up.${RESET}
 EOF
 }
 
