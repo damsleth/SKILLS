@@ -19,9 +19,9 @@ INCLUDE_PERSONAL=0
 
 # ── Colors ──
 if [ -t 1 ]; then
-    RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; DIM='\033[2m'; RESET='\033[0m'
+    RED='\033[31m'; GREEN='\033[32m'; DIM='\033[2m'; RESET='\033[0m'
 else
-    RED=''; GREEN=''; YELLOW=''; DIM=''; RESET=''
+    RED=''; GREEN=''; DIM=''; RESET=''
 fi
 
 fail=0
@@ -70,11 +70,70 @@ fi
 # ── Check 2: installer --list runs clean ──
 
 echo "• install-skill.sh --list"
-if ! "$REPO_ROOT/install-skill.sh" --list >/dev/null 2>&1; then
+if ! list_output="$("$REPO_ROOT/install-skill.sh" --list 2>&1)"; then
     report "install-skill.sh --list exited nonzero"
 fi
+if grep -q $'\033' <<<"$list_output"; then
+    report "install-skill.sh --list emits ANSI escapes when stdout is not a TTY"
+fi
 
-# ── Check 3: per-skill static checks ──
+# ── Check 3: shell scripts ──
+
+echo "• shellcheck"
+if command -v shellcheck >/dev/null 2>&1; then
+    shell_files=("$REPO_ROOT/install-skill.sh" "$REPO_ROOT/scripts/lint.sh")
+    shopt -s nullglob
+    for f in "$REPO_ROOT"/scripts/*.sh; do
+        shell_files+=("$f")
+    done
+    shopt -u nullglob
+    [ -f "$REPO_ROOT/cj-todo/todo.sh" ] && shell_files+=("$REPO_ROOT/cj-todo/todo.sh")
+    if ! shellcheck "${shell_files[@]}" 2>/tmp/skills-shellcheck.err; then
+        report "shellcheck found issues"
+        sed 's/^/      /' /tmp/skills-shellcheck.err >&2
+    fi
+    rm -f /tmp/skills-shellcheck.err
+else
+    detail "shellcheck not found; skipping"
+fi
+
+# ── Check 4: README skill table drift ──
+
+echo "• README skill table"
+expected_skills="$(
+    for skill_file in "${skill_files[@]}"; do
+        basename "$(dirname "$skill_file")"
+    done | sort
+)"
+readme_skills="$(grep -E '^\| \*\*[^*]+\*\* \|' "$REPO_ROOT/README.md" | sed -E 's/^\| \*\*([^*]+)\*\*.*/\1/' | sort)"
+if [ "$expected_skills" != "$readme_skills" ]; then
+    report "README skill table does not match discovered */SKILL.md folders"
+    detail "Discovered: $(tr '\n' ' ' <<<"$expected_skills" | sed 's/ $//')"
+    detail "README:     $(tr '\n' ' ' <<<"$readme_skills" | sed 's/ $//')"
+fi
+
+# ── Check 5: agent YAML parses ──
+
+echo "• agent YAML"
+agent_yamls=()
+shopt -s nullglob
+for f in "$REPO_ROOT"/*/agents/*.yaml; do
+    agent_yamls+=("$f")
+done
+shopt -u nullglob
+if [ ${#agent_yamls[@]} -gt 0 ]; then
+    if command -v ruby >/dev/null 2>&1; then
+        if ! ruby -ryaml -e 'ARGV.each { |f| YAML.safe_load(File.read(f), permitted_classes: [], aliases: false) }' "${agent_yamls[@]}" 2>/tmp/skills-yaml.err; then
+            report "agent YAML failed to parse"
+            sed 's/^/      /' /tmp/skills-yaml.err >&2
+        fi
+        rm -f /tmp/skills-yaml.err
+    else
+        detail "ruby not found; skipping YAML parse"
+    fi
+fi
+
+# ── Check 6: per-skill static checks ──
 
 # Patterns that indicate hardcoded user paths
 USER_PATH_RE='/Users/[A-Za-z][A-Za-z0-9_-]+|/home/[A-Za-z][A-Za-z0-9_-]+|~/Code/'
@@ -85,7 +144,6 @@ BAD_TOOLS=(ask_user_input request_user_input web_search str_replace)
 
 for skill_file in "${skill_files[@]}"; do
     rel="${skill_file#"$REPO_ROOT"/}"
-    skill_dir="$(dirname "$skill_file")"
     echo ""
     echo "• $rel"
 

@@ -40,6 +40,21 @@ ensure_store() {
 
 today() { date +%Y-%m-%d; }
 
+unique_archive_path() {
+  local src="$1"
+  local base stem ext dest n
+  base="$(basename "$src")"
+  stem="${base%.md}"
+  ext=".md"
+  dest="$DONE_DIR/$base"
+  n=2
+  while [ -e "$dest" ]; do
+    dest="$DONE_DIR/${stem}-$(today)-$n$ext"
+    n=$((n + 1))
+  done
+  printf '%s' "$dest"
+}
+
 slugify() {
   printf '%s' "$1" \
     | tr '[:upper:]' '[:lower:]' \
@@ -139,8 +154,11 @@ cmd_done() {
   IFS=$'\t' read -r kind target display <<<"$rec"
   if [ "$kind" = plan ]; then
     mkdir -p "$DONE_DIR"
-    mv "$PLANS_DIR/$(basename "$target")" "$DONE_DIR/"
-    echo "${GREEN}✓${RESET} done: $display ${DIM}(plan → .plans/done/)${RESET}"
+    local src archive
+    src="$PLANS_DIR/$(basename "$target")"
+    archive="$(unique_archive_path "$src")"
+    mv "$src" "$archive"
+    echo "${GREEN}✓${RESET} done: $display ${DIM}(plan → ${archive#"$ROOT"/})${RESET}"
   else
     printf -- '- [x] %s (%s)\n' "$display" "$(today)" >> "$DONE_FILE"
     sed -i.bak "${target}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"

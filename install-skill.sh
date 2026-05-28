@@ -123,12 +123,21 @@ install_state() {
 
 # ── Terminal helpers ──
 
-BOLD='\033[1m'
-DIM='\033[2m'
-GREEN='\033[32m'
-RED='\033[31m'
-CYAN='\033[36m'
-RESET='\033[0m'
+if [ -t 1 ]; then
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    GREEN='\033[32m'
+    RED='\033[31m'
+    CYAN='\033[36m'
+    RESET='\033[0m'
+else
+    BOLD=''
+    DIM=''
+    GREEN=''
+    RED=''
+    CYAN=''
+    RESET=''
+fi
 CHECK='◉'
 EMPTY='◯'
 ARROW='▸'
@@ -253,10 +262,10 @@ interactive_menu() {
                 [ $cursor -lt $((count - 1)) ] && cursor=$((cursor + 1))
                 ;;
             ' ')  # Space — toggle
-                if [ "${selected[$cursor]}" = "1" ]; then
-                    selected[$cursor]="0"
+                if [ "${selected[cursor]}" = "1" ]; then
+                    selected[cursor]="0"
                 else
-                    selected[$cursor]="1"
+                    selected[cursor]="1"
                 fi
                 ;;
             '')   # Enter — apply
@@ -285,6 +294,7 @@ interactive_menu() {
 # Works for fresh installs, partial-install repairs, and cleanup.
 apply_changes() {
     local changed=0
+    local total_blocked=0
 
     echo ""
 
@@ -293,6 +303,7 @@ apply_changes() {
         local src="${SKILL_PATHS[$i]}"
         local created=0
         local removed=0
+        local blocked=0
 
         if [ "${selected[$i]}" = "1" ]; then
             for target_base in "${TARGETS[@]}"; do
@@ -309,13 +320,22 @@ apply_changes() {
                 elif [ ! -L "$link" ]; then
                     # Real file/directory in the way - refuse to clobber
                     echo -e "  ${RED}!${RESET} $link ${DIM}(not a symlink - requires manual cleanup: ${RESET}rm -rf $link${DIM})${RESET}"
+                    blocked=$((blocked + 1))
                 fi
                 # Working symlink (to us or an override): leave alone
             done
+            total_blocked=$((total_blocked + blocked))
             if [ $created -gt 0 ]; then
-                echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
-                skill_cli_install "$name" "$src"
+                if [ $blocked -eq 0 ]; then
+                    echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
+                    skill_cli_install "$name" "$src"
+                else
+                    echo -e "  ${CYAN}◐${RESET} Partially installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
+                fi
                 changed=$((changed + 1))
+            fi
+            if [ $blocked -gt 0 ]; then
+                echo -e "  ${RED}!${RESET} Install incomplete for ${BOLD}$name${RESET} ${DIM}(${blocked} blocked target(s))${RESET}"
             fi
         else
             for target_base in "${TARGETS[@]}"; do
@@ -338,6 +358,9 @@ apply_changes() {
         echo ""
         echo -e "${DIM}Targets: ${TARGETS[*]}${RESET}"
         echo "Done. $changed skill(s) updated."
+    fi
+    if [ $total_blocked -gt 0 ]; then
+        return 1
     fi
 }
 
@@ -371,6 +394,8 @@ cmd_list() {
 cmd_install() {
     local name="$1"
     local src
+    local created=0
+    local blocked=0
     src="$(skill_path_by_name "$name")" || true
     if [ -z "$src" ] || [ ! -f "$src/SKILL.md" ]; then
         echo "Unknown skill: $name" >&2; exit 1
@@ -382,10 +407,22 @@ cmd_install() {
         # nest the link inside a directory, which is almost never what we want.
         if [ -e "$link" ] && [ ! -L "$link" ]; then
             echo "  ! $link (not a symlink - requires manual cleanup: rm -rf $link)" >&2
+            blocked=$((blocked + 1))
             continue
         fi
-        ln -sfn "$src" "$link"
+        if [ ! -L "$link" ] || [ "$(readlink "$link")" != "$src" ]; then
+            ln -sfn "$src" "$link"
+            created=$((created + 1))
+        fi
     done
+    if [ "$blocked" -gt 0 ]; then
+        echo "Install incomplete: $name blocked in $blocked target(s)" >&2
+        exit 1
+    fi
+    if [ "$created" -eq 0 ] && [ "$(install_count "$name")" -lt "${#TARGETS[@]}" ]; then
+        echo "Install incomplete: $name is not installed in all targets" >&2
+        exit 1
+    fi
     skill_cli_install "$name" "$src"
     echo "Installed: $name"
 }

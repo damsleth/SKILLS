@@ -62,7 +62,7 @@ Load `./references/checklist.md` for the execution flow. Load `./references/patt
 
 6. Request credentials and wire secrets.
 - Ask for a Cloudflare API token with the minimum needed permissions for Workers and DNS changes.
-- Default local storage to a gitignored `.env` file in the repo because this user asked for that path.
+- Default local storage to a repo-local, gitignored `.env` file unless project conventions prefer `.dev.vars`.
 - Create or update `.env.example` using `./assets/cloudflare.env.example`.
 - Mirror the same values in GitHub Actions secrets: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 - Never commit live secrets.
