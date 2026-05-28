@@ -13,47 +13,47 @@ Prioritize strict flow coverage so `uxl shots` is unblocked and the full `shots 
 ## Follow This Workflow
 
 1. Confirm project readiness.
-- Ensure the repository has a `package.json` and uses Node 20+.
-- Run all `uxl` commands from the repo root (same folder as `uxl.config.mjs`).
+   - Ensure the repository has a `package.json` and uses Node 20+.
+   - Run all `uxl` commands from the repo root (same folder as `uxl.config.mjs`).
 
 2. Install dependencies.
-- Install `uxl`: `npm i -D @damsleth/ux-loop`
-- Install Playwright for capture: `npm i -D playwright`
-- Install OpenAI SDK only for OpenAI review runner: `npm i openai`
+   - Install `uxl`: `npm i -D @damsleth/ux-loop`
+   - Install Playwright for capture: `npm i -D playwright`
+   - Install OpenAI SDK only for OpenAI review runner: `npm i openai`
 
 3. Initialize config.
-- Run `uxl init`
-- Use `uxl init --non-interactive` for automation/CI.
-- Use `uxl init --force` only when intentionally replacing an existing config file.
+   - Run `uxl init`
+   - Use `uxl init --non-interactive` for automation/CI.
+   - Use `uxl init --force` only when intentionally replacing an existing config file.
 
 4. Complete user-flow onboarding (mandatory for screenshots).
-- Run `uxl flows check`.
-- If coverage is incomplete, repair mapping with:
-- `uxl flows list`
-- `uxl flows add --id <id> --label <label> [--path <path>] [--to <flowName>]`
-- `uxl flows map --id <inventoryId> --to <flowName[,flowName]>`
-- `uxl flows import-playwright --yes` (seed suggestions, then verify manually)
-- Repeat `uxl flows check` until coverage is 100% for all required inventory entries.
+   - Run `uxl flows check`.
+   - If coverage is incomplete, repair mapping with:
+     - `uxl flows list`
+     - `uxl flows add --id <id> --label <label> [--path <path>] [--to <flowName>]`
+     - `uxl flows map --id <inventoryId> --to <flowName[,flowName]>`
+     - `uxl flows import-playwright --yes` (seed suggestions, then verify manually)
+   - Repeat `uxl flows check` until coverage is 100% for all required inventory entries.
 
 5. Run the UX loop pipeline.
-- Capture screenshots: `uxl shots`
-- Create review report: `uxl review`
-- Apply implementation changes: `uxl implement`
-- Or run end-to-end: `uxl run`
+   - Capture screenshots: `uxl shots`
+   - Create review report: `uxl review`
+   - Apply implementation changes: `uxl implement`
+   - Or run end-to-end: `uxl run`
 
 6. Handle runner and target overrides when needed.
-- Review runner:
-- Codex runner (default): `uxl review --runner codex`
-- OpenAI runner: `uxl review --runner openai --model <model>` with `OPENAI_API_KEY` set
-- Implement target:
-- `uxl implement --target current`
-- `uxl implement --target branch --branch <name>`
-- `uxl implement --target worktree --worktree <path>`
+   - Review runner:
+     - Codex runner (default): `uxl review --runner codex`
+     - OpenAI runner: `uxl review --runner openai --model <model>` with `OPENAI_API_KEY` set
+   - Implement target:
+     - `uxl implement --target current`
+     - `uxl implement --target branch --branch <name>`
+     - `uxl implement --target worktree --worktree <path>`
 
 7. Verify expected artifacts.
-- Screenshot manifest: `.uxl/shots/manifest.json`
-- Review output: `.uxl/report.md`
-- Logs: `.uxl/logs`
+   - Screenshot manifest: `.uxl/shots/manifest.json`
+   - Review output: `.uxl/report.md`
+   - Logs: `.uxl/logs`
 
 ## Guardrails
 

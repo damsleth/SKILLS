@@ -1,17 +1,6 @@
 ---
 name: cj-voice-dna
 description: Load and apply the user's writing voice profile when drafting any text meant for public or semi-public audiences — blog posts, READMEs, LinkedIn updates, release notes, external-facing docs. Also use when calibrating or updating the voice profile. Invoke before writing, not after.
-version: 1.0.0
-author: damsleth
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-tags:
-  - writing
-  - voice
-  - style
 ---
 
 # Voice DNA
@@ -113,13 +102,7 @@ Save the finalized profile to `~/.config/voice-dna.json`. Confirm the path to th
 
 ## Composing with other skills
 
-Other skills that produce public-facing text should invoke this skill first:
-
-```
-Use the Skill tool: skill: "cj-voice-dna"
-```
-
-Then apply the loaded profile to whatever they're writing. The `/cj-blog-damsleth-no` skill does this for blog posts.
+Other skills that produce public-facing text should load and apply this skill first, then apply the loaded profile to whatever they're writing. The private `cj-blog-damsleth-no` skill does this for blog posts.
 
 ## Updating the profile
 

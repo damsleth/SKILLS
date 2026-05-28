@@ -7,8 +7,6 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 | Skill | Description |
 |-------|-------------|
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
-| **cj-memory** | Generic memory-recall routed through the [hugr](https://github.com/damsleth/hugr) suite (yaams + cognitive-ledger). No user-specific references baked in. |
-| **cj-things3-read-tasks** | Read and search Things3 tasks via things-cli |
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
 | **cj-ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline. ([ux-loop](https://github.com/damsleth/ux-loop)) |
 | **cj-voice-dna** | Load and apply your writing voice profile before drafting public-facing text |
@@ -26,8 +24,8 @@ This creates symlinks in `~/.claude/skills/`, `~/.codex/skills/`, and `~/.copilo
 You can also install/uninstall non-interactively:
 
 ```bash
-./install-skill.sh --install cj-memory
-./install-skill.sh --uninstall cj-memory
+./install-skill.sh --install cj-todo
+./install-skill.sh --uninstall cj-todo
 ./install-skill.sh --list
 ```
 
