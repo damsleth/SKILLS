@@ -7,6 +7,103 @@ description: Load and apply the user's writing voice profile when drafting any t
 
 Load and apply a persistent author voice profile so all writing sounds like the same person.
 
+The skill has two layers:
+
+1. **Baseline rules** (below): hardcoded anti-slop rules. Always apply, profile or not.
+2. **Voice profile**: the user's personal calibration, loaded from disk. Layers on top of the baseline.
+
+If they ever conflict, baseline wins. The baseline exists because calibrated profiles alone still let AI patterns leak through.
+
+## Baseline rules (always apply)
+
+### Writing rules
+
+- Write like a sharp human, not a language model.
+- Use contractions naturally (don't, can't, won't).
+- Short paragraphs. 1-3 sentences max.
+- Get to the point. No throat-clearing, no preamble.
+- If making a claim, be specific. Use numbers, names, concrete details.
+- Vary sentence length. Mix short punchy lines with longer ones.
+- Use natural transitions, not mechanical ones ("Furthermore," "Additionally").
+- When uncertain, say so plainly ("I think," "probably," "kinda"). Hedging is human.
+- Never pad output to seem more thorough. Shorter and accurate beats longer and fluffy.
+- Use physical verbs for abstract processes: "sanded down" not "improved," "bolted on" not "added," "stripped back" not "simplified."
+- Humor comes from specificity, not from jokes. Be unexpectedly precise.
+- Parenthetical asides are good. Use them for editorial commentary, honest reactions, quick tangents, and deflating your own seriousness (like this).
+
+### Formatting rules
+
+- Short paragraphs (1-2 sentences default, 3 max).
+- Numbers as digits.
+- Contractions always.
+- NO em dashes ever. Use commas, periods, colons, semicolons, or parentheses.
+- Bold sparingly, 1-2 key moments per section.
+- Code blocks for specific prompts, commands, or tool outputs.
+
+### Banned phrases (never use these, ever)
+
+**Dead AI language**
+
+- "In today's [anything]..."
+- "It's important to note that..." / "It's worth noting..."
+- "Delve" / "Dive into" / "Unpack"
+- "Harness" / "Leverage" / "Utilize"
+- "Landscape" / "Realm" / "Robust"
+- "Game-changer" / "Cutting-edge"
+- "Straightforward"
+- "I'd be happy to help"
+- "In order to"
+
+**Dead transitions**
+
+- "Furthermore" / "Additionally" / "Moreover"
+- "Moving forward" / "At the end of the day"
+- "To put this in perspective..."
+- "What makes this particularly interesting is..."
+- "The implications here are..."
+- "In other words..."
+- "It goes without saying..."
+
+**Engagement bait**
+
+- "Let that sink in" / "Read that again" / "Full stop"
+- "This changes everything"
+- "Are you paying attention?"
+- "You're not ready for this"
+
+**AI cringe**
+
+- "Supercharge" / "Unlock" / "Future-proof"
+- "10x your productivity"
+- "The AI revolution"
+- "In the age of AI"
+
+**Generic insider claims**
+
+- "Here's the part nobody's talking about"
+- "What nobody tells you"
+- Anything with "nobody" or "most people don't realize"
+
+### The Big One (FATAL)
+
+- "This isn't X. This is Y." and ALL variations.
+- "Not X. Y."
+- "Forget X. This is Y."
+- "Less X, more Y."
+- ANY sentence that negates one framing then asserts a corrected one.
+- If even ONE of these appears, the output fails. Delete the negation, just state the positive claim.
+
+### Self-check before delivering
+
+Before showing any draft to the user (or writing it to a file), scan it:
+
+1. Search for every banned phrase above. Found one? Rewrite that sentence.
+2. Hunt the negate-then-assert pattern ("not X, but Y" in any disguise). This one slips in constantly. Found it? Delete the negation, keep the positive claim.
+3. Check for em dashes. Replace with commas, periods, colons, semicolons, or parentheses.
+4. Check paragraph length. Anything over 3 sentences gets split.
+
+This is a mechanical pass, not a vibe check. Do it every time.
+
 ## Profile resolution
 
 On invocation, resolve the voice profile in this order:
@@ -19,15 +116,14 @@ Once loaded, hold the profile in context for the duration of the writing task. D
 
 ## Applying the profile
 
-When writing on behalf of the user:
+The baseline rules above are already in force. The profile adds the personal layer on top:
 
 - Match the tone, register, and sentence rhythm described in the profile
-- Apply the "avoid" list strictly — these are the user's pet hates
+- Apply the "avoid" list strictly — these are the user's pet hates, additive to the banned phrases above
 - When the profile has example phrases or vocabulary, prefer them
-- Do not blend in generic AI writing patterns (hedging, bullet overload, "it's worth noting that")
 - If the profile says "show the mess", include failed attempts, caveats, and honest context — don't sanitize
 
-When in doubt: write something, show it to the user, and ask "does this sound like you?" Adjust from there.
+When in doubt: write something, run the self-check, show it to the user, and ask "does this sound like you?" Adjust from there.
 
 ## Profile schema
 
@@ -69,6 +165,8 @@ All fields are optional. A minimal profile with just `tone`, `avoid`, and one `e
 ## Calibration flow
 
 Run this when no profile exists, or when the user says "update my voice profile" / "recalibrate".
+
+The baseline rules apply regardless, so the profile doesn't need to restate banned phrases or formatting rules. Calibrate the personal stuff: tone, rhythm, vocabulary, humor, registers.
 
 ### Step 1 - Gather samples
 
