@@ -70,8 +70,10 @@ one-liner.
   and archiving stay consistent. You *may* edit a plan's own `.plans/<name>.md` freely.
 - `todo rm <n>` on a plan **deletes the file**; `todo done <n>` archives it to
   `.plans/done/`. Prefer `done` unless the user wants it gone for good.
-- Keep responses tight: confirm the action in a line or two, don't restate the whole list
-  unless asked.
+- When the action is a plain list (no-arg invocation, or `todo list`): always print the full
+  list verbatim in your text response — that *is* the output the user wants to see.
+- For all other actions (add, done, rm, plan): confirm in a line or two; don't restate the
+  full list unless asked.
 - The store is per-repo (resolved via `git rev-parse --show-toplevel`, falling back to the
   current directory). If the user expects a list and it's empty, they may be in the wrong
   repo — say so rather than assuming.
