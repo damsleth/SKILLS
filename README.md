@@ -9,6 +9,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
 | **cj-things** | Manage Things 3 tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus read views with JSON output. Pairs with cj-notes and feeds cj-weekly-review. ([things3-cli](https://github.com/ossianhempel/things3-cli)) |
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
+| **cj-video-vision** | Watch and analyze videos (local files + YouTube) via the claude-video-vision MCP server — frame extraction, scene/silence/motion analysis, transcription. ([claude-video-vision](https://github.com/damsleth/claude-video-vision)) |
 | **cj-ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline. ([ux-loop](https://github.com/damsleth/ux-loop)) |
 | **cj-voice-dna** | Load and apply your writing voice profile before drafting public-facing text |
 
