@@ -23,11 +23,40 @@ fi
 
 die() { echo "${RED}error:${RESET} $*" >&2; exit 1; }
 
+# ── global flag ──
+# `todo g …`, `todo -g …`, `todo --global …`, or invoking as `todox` stores
+# todos in one global dir instead of the current repo's .plans/.
+GLOBAL=0
+case "$(basename "$0")" in todox) GLOBAL=1 ;; esac
+case "${1:-}" in
+  g|-g|--global) GLOBAL=1; shift ;;
+esac
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/cj-todo/dir"
+
+# The global todo dir: $TODO_GLOBAL_DIR, else the saved config, else ask once.
+global_dir() {
+  [ -n "${TODO_GLOBAL_DIR:-}" ] && { printf '%s' "${TODO_GLOBAL_DIR/#\~/$HOME}"; return; }
+  [ -s "$CONFIG" ] && { head -n1 "$CONFIG"; return; }
+  local def="$HOME/brain/todo" ans=""
+  printf 'global todo location? [%s] ' "$def" >&2
+  [ -r /dev/tty ] && read -r ans < /dev/tty
+  ans="${ans:-$def}"; ans="${ans/#\~/$HOME}"
+  mkdir -p "$(dirname "$CONFIG")"
+  printf '%s\n' "$ans" > "$CONFIG"
+  printf '%s' "$ans"
+}
+
 # ── locate repo root & storage ──
 repo_root() { git rev-parse --show-toplevel 2>/dev/null || pwd; }
 
-ROOT="$(repo_root)"
-PLANS_DIR="$ROOT/.plans"
+if [ "$GLOBAL" -eq 1 ]; then
+  PLANS_DIR="$(global_dir)"          # used directly — no .plans/ suffix
+  ROOT="$(dirname "$PLANS_DIR")"     # only for relative-path display
+else
+  ROOT="$(repo_root)"
+  PLANS_DIR="$ROOT/.plans"
+fi
 TODO_FILE="$PLANS_DIR/TODO.md"
 DONE_FILE="$PLANS_DIR/DONE.md"
 DONE_DIR="$PLANS_DIR/done"
@@ -77,7 +106,7 @@ plan_title() {
 #   todo<TAB><line-number-in-TODO.md><TAB><task text>
 #   plan<TAB><relative path><TAB><plan title>
 enumerate() {
-  ensure_store
+  # read-only: never create the store (bare `todo` on a fresh dir is a noop)
   # Open todos: "- [ ]" lines, skipping legacy "→ .plans/" index lines
   # (the file scan below is the source of truth for plans).
   if [ -f "$TODO_FILE" ]; then
@@ -216,8 +245,9 @@ cmd_install() {
     echo "${YELLOW}note:${RESET} another 'todo' is earlier on PATH at $existing — it will shadow this one."
   fi
   ln -sfn "$self" "$target"
+  ln -sfn "$self" "$bindir/todox"   # todox = todo --global
   chmod +x "$self"
-  echo "${GREEN}✓${RESET} linked ${BOLD}todo${RESET} → $target"
+  echo "${GREEN}✓${RESET} linked ${BOLD}todo${RESET} & ${BOLD}todox${RESET} → $bindir"
   case ":$PATH:" in
     *":$bindir:"*) ;;
     *) echo "${YELLOW}note:${RESET} $bindir is not on your PATH — add it to use 'todo' directly." ;;
@@ -238,6 +268,11 @@ ${BOLD}usage${RESET}
   todo where                 print the .plans directory path
   todo install [bindir]      symlink this script as 'todo' (default ~/.local/bin)
   todo help                  this help
+
+${BOLD}global${RESET} (one shared store instead of the repo's .plans/)
+  todo g add "<text>"        prefix any command with g / -g / --global
+  todox add "<text>"         …or use the todox alias
+  ${DIM}location is asked once, saved to ~/.config/cj-todo/dir; override w/ \$TODO_GLOBAL_DIR${RESET}
 
 ${DIM}Plans are just .md files in .plans/ — drop files in by hand and they show up.${RESET}
 EOF
