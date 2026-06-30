@@ -129,6 +129,18 @@ enumerate() {
 # The Nth enumerated record (1-based).
 nth_record() { enumerate | sed -n "${1}p"; }
 
+# Delete the given TODO.md line numbers in one pass, highest first so that
+# earlier deletions don't shift the lines still to be removed. ponytail: O(n)
+# sed calls, fine for hand-sized todo lists.
+delete_todo_lines() {
+  [ "$#" -gt 0 ] || return 0
+  local ln
+  for ln in $(printf '%s\n' "$@" | sort -rnu); do
+    sed -i.bak "${ln}d" "$TODO_FILE"
+  done
+  rm -f "$TODO_FILE.bak"
+}
+
 # ── commands ──
 
 cmd_add() {
@@ -174,41 +186,55 @@ cmd_list() {
   fi
 }
 
+# Snapshot the enumerated list, then resolve every requested number against
+# that snapshot before mutating anything — so completing/removing several at
+# once doesn't drift as the list renumbers under us. Requires bash 4 arrays.
 cmd_done() {
-  [ "$#" -gt 0 ] || die "which one? usage: todo done <number>"
-  [[ "$1" =~ ^[0-9]+$ ]] || die "expected a number, got \"$1\""
-  local rec; rec="$(nth_record "$1")"
-  [ -n "$rec" ] || die "no open item #$1 (run 'todo' to see the list)"
-  local kind target display
-  IFS=$'\t' read -r kind target display <<<"$rec"
-  if [ "$kind" = plan ]; then
-    mkdir -p "$DONE_DIR"
-    local src archive
-    src="$PLANS_DIR/$(basename "$target")"
-    archive="$(unique_archive_path "$src")"
-    mv "$src" "$archive"
-    echo "${GREEN}✓${RESET} done: $display ${DIM}(plan → ${archive#"$ROOT"/})${RESET}"
-  else
-    printf -- '- [x] %s (%s)\n' "$display" "$(today)" >> "$DONE_FILE"
-    sed -i.bak "${target}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
-    echo "${GREEN}✓${RESET} done: $display"
-  fi
+  [ "$#" -gt 0 ] || die "which one? usage: todo done <number> [number...]"
+  local -a records=()
+  while IFS= read -r line; do records+=("$line"); done < <(enumerate)
+  local -a todo_lines=()
+  local n rec kind target display src archive
+  for n in "$@"; do
+    [[ "$n" =~ ^[0-9]+$ ]] || die "expected a number, got \"$n\""
+    rec="${records[$((n - 1))]:-}"
+    [ -n "$rec" ] || die "no open item #$n (run 'todo' to see the list)"
+    IFS=$'\t' read -r kind target display <<<"$rec"
+    if [ "$kind" = plan ]; then
+      mkdir -p "$DONE_DIR"
+      src="$PLANS_DIR/$(basename "$target")"
+      archive="$(unique_archive_path "$src")"
+      mv "$src" "$archive"
+      echo "${GREEN}✓${RESET} done: $display ${DIM}(plan → ${archive#"$ROOT"/})${RESET}"
+    else
+      printf -- '- [x] %s (%s)\n' "$display" "$(today)" >> "$DONE_FILE"
+      todo_lines+=("$target")
+      echo "${GREEN}✓${RESET} done: $display"
+    fi
+  done
+  delete_todo_lines "${todo_lines[@]}"
 }
 
 cmd_rm() {
-  [ "$#" -gt 0 ] || die "which one? usage: todo rm <number>"
-  [[ "$1" =~ ^[0-9]+$ ]] || die "expected a number, got \"$1\""
-  local rec; rec="$(nth_record "$1")"
-  [ -n "$rec" ] || die "no open item #$1"
-  local kind target display
-  IFS=$'\t' read -r kind target display <<<"$rec"
-  if [ "$kind" = plan ]; then
-    rm -f "$PLANS_DIR/$(basename "$target")"
-    echo "${RED}✗${RESET} removed plan file: $display ${DIM}($target)${RESET}"
-  else
-    sed -i.bak "${target}d" "$TODO_FILE" && rm -f "$TODO_FILE.bak"
-    echo "${RED}✗${RESET} removed: $display"
-  fi
+  [ "$#" -gt 0 ] || die "which one? usage: todo rm <number> [number...]"
+  local -a records=()
+  while IFS= read -r line; do records+=("$line"); done < <(enumerate)
+  local -a todo_lines=()
+  local n rec kind target display
+  for n in "$@"; do
+    [[ "$n" =~ ^[0-9]+$ ]] || die "expected a number, got \"$n\""
+    rec="${records[$((n - 1))]:-}"
+    [ -n "$rec" ] || die "no open item #$n"
+    IFS=$'\t' read -r kind target display <<<"$rec"
+    if [ "$kind" = plan ]; then
+      rm -f "$PLANS_DIR/$(basename "$target")"
+      echo "${RED}✗${RESET} removed plan file: $display ${DIM}($target)${RESET}"
+    else
+      todo_lines+=("$target")
+      echo "${RED}✗${RESET} removed: $display"
+    fi
+  done
+  delete_todo_lines "${todo_lines[@]}"
 }
 
 cmd_log() {

@@ -33,8 +33,8 @@ script by path (`./todo.sh` inside this skill folder, or wherever it's installed
 todo                  # list open todos & plans (default)
 todo add "<text>"     # add a todo
 todo plan "<name>"    # create a plan file (.plans/<slug>.md); prints the path
-todo done <n>         # complete #n (todo → DONE.md, plan file → .plans/done/)
-todo rm <n>           # delete #n (todo line, or plan file)
+todo done <n> [n...]  # complete #n (todo → DONE.md, plan file → .plans/done/)
+todo rm <n> [n...]    # delete #n (todo line, or plan file)
 todo log              # show completed todos & plans
 todo where            # print the .plans directory
 todo install          # symlink the script as `todo` on PATH (~/.local/bin)
@@ -42,6 +42,12 @@ todo install          # symlink the script as `todo` on PATH (~/.local/bin)
 
 Item numbers come straight from `todo` / `todo list` output — always list first if you
 need a number you don't already have.
+
+**Completing several at once:** numbers are list positions, so they renumber after every
+removal. To finish multiple items from one listing, pass them all to a single call
+(`todo done 2 3 4`) — they're resolved against one snapshot, so nothing drifts. Never fire
+`todo done <n>` repeatedly off the *same* original listing; either batch them or re-list
+between calls.
 
 ## Todo vs. plan — the one judgment call
 
