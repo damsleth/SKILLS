@@ -365,9 +365,14 @@ interactive_menu() {
         SEARCH_HAYSTACK[i]="$(printf '%s %s' "$name" "${SKILL_DESCS[$i]}" | tr '[:upper:]' '[:lower:]')"
     done
 
-    # Hide cursor, restore on exit
+    # Switch to the alternate screen and hide the cursor; restore both on
+    # exit. The alternate screen keeps the menu off the user's normal
+    # scrollback, and combined with the home+redraw+trim approach below
+    # (instead of clear-then-redraw every frame) avoids the blank-frame
+    # flicker of erasing the whole screen before repainting it.
+    tput smcup 2>/dev/null || true
     tput civis 2>/dev/null || true
-    cleanup() { tput cnorm 2>/dev/null || true; }
+    cleanup() { tput cnorm 2>/dev/null || true; tput rmcup 2>/dev/null || true; }
     trap cleanup EXIT
 
     # Scrolling viewport: only render as many items as fit the terminal
@@ -463,8 +468,10 @@ interactive_menu() {
             window_end=$j
         done
 
-        # Clear screen and draw
-        printf '\033[H\033[2J'
+        # Redraw in place: move to home and overwrite in place rather than
+        # clearing first — clearing then redrawing paints a blank frame in
+        # between, which is what causes the visible flicker.
+        printf '\033[H'
         echo -e "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
         if [ "$filter_mode" = "1" ]; then
             echo -e "${DIM}type to filter  ·  enter confirm  ·  esc cancel${RESET}"
@@ -571,6 +578,11 @@ interactive_menu() {
         else
             echo -e "  ${DIM}No changes${RESET}"
         fi
+
+        # Erase any leftover content below this frame (e.g. the previous
+        # frame had more lines — toggling descriptions off, or a filter
+        # narrowing the list, both shrink the frame).
+        printf '\033[J'
 
         # Read single keypress
         IFS= read -rsn1 key
