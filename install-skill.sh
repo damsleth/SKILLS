@@ -21,6 +21,17 @@ for optional in "$HOME/.agents" "$HOME/.pi"; do
     [ -d "$optional" ] && TARGETS+=("$optional/skills")
 done
 
+# "All skills" library: real (non-symlink) skill folders kept in
+# ~/.agents/skills, copied (not symlinked) into Claude/Codex/Copilot.
+# Disabling moves the folder out to skills-unused instead of deleting it.
+AGENTS_SKILLS_DIR="$HOME/.agents/skills"
+AGENTS_UNUSED_DIR="$HOME/.agents/skills-unused"
+COPY_TARGETS=(
+    "$HOME/.claude/skills"
+    "$HOME/.codex/skills"
+    "$HOME/.copilot/skills"
+)
+
 # ── Discover skills (subfolders containing SKILL.md) ──
 
 SKILL_NAMES=()
@@ -54,8 +65,67 @@ skill_path_by_name() {
     return 1
 }
 
+# All repo/personal skills use kind "link" (symlinked). Skills discovered
+# below in the ~/.agents/skills library use kind "copy" (copied, not linked).
+SKILL_KIND=()
+for _ in "${SKILL_NAMES[@]}"; do SKILL_KIND+=("link"); done
+REPO_SKILL_COUNT=${#SKILL_NAMES[@]}
+
+skill_kind_by_name() {
+    local want="$1" i
+    for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
+        if [ "${SKILL_NAMES[$i]}" = "$want" ]; then
+            echo "${SKILL_KIND[$i]}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Scan the "all skills" library: real directories in ~/.agents/skills
+# (enabled) and ~/.agents/skills-unused (disabled). Symlinks inside
+# ~/.agents/skills are repo skills mirrored there via TARGETS above —
+# those stay link-only and are never listed here.
+shopt -s nullglob
+if [ -d "$AGENTS_SKILLS_DIR" ]; then
+    for dir in "$AGENTS_SKILLS_DIR"/*/; do
+        entry="${dir%/}"
+        [ -L "$entry" ] && continue
+        [ -f "$dir/SKILL.md" ] || continue
+        name="$(basename "$dir")"
+        if skill_path_by_name "$name" >/dev/null 2>&1; then
+            echo "Warning: ~/.agents/skills/$name collides with an existing skill name - skipping" >&2
+            continue
+        fi
+        desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
+        desc="${desc:-(no description)}"
+        SKILL_NAMES+=("$name")
+        SKILL_DESCS+=("$desc")
+        SKILL_PATHS+=("$entry")
+        SKILL_KIND+=("copy")
+    done
+fi
+if [ -d "$AGENTS_UNUSED_DIR" ]; then
+    for dir in "$AGENTS_UNUSED_DIR"/*/; do
+        entry="${dir%/}"
+        [ -f "$dir/SKILL.md" ] || continue
+        name="$(basename "$dir")"
+        if skill_path_by_name "$name" >/dev/null 2>&1; then
+            echo "Warning: ~/.agents/skills-unused/$name collides with an existing skill name - skipping" >&2
+            continue
+        fi
+        desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
+        desc="${desc:-(no description)}"
+        SKILL_NAMES+=("$name")
+        SKILL_DESCS+=("$desc")
+        SKILL_PATHS+=("$entry")
+        SKILL_KIND+=("copy")
+    done
+fi
+shopt -u nullglob
+
 if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
-    echo "No skills found (folders with SKILL.md) in $SCRIPT_DIR"
+    echo "No skills found (folders with SKILL.md) in $SCRIPT_DIR or $AGENTS_SKILLS_DIR"
     exit 1
 fi
 
@@ -91,16 +161,28 @@ skill_cli_uninstall() {
 
 # ── Check install state ──
 #
-# A skill can be in one of three states across the TARGETS dirs:
-#   full    — symlink present in every target
-#   partial — symlink present in some but not all targets
-#   none    — no symlink anywhere
+# A skill can be in one of three states across its targets:
+#   full    — present in every target
+#   partial — present in some but not all targets
+#   none    — absent everywhere
 #
 # The installer reconciles to the desired state on apply, so partial
-# installs get repaired (missing symlinks get created) rather than
+# installs get repaired (missing copies/symlinks get created) rather than
 # silently preselected as "already installed".
+#
+# "link" kind skills (this repo) symlink into TARGETS. "copy" kind skills
+# (~/.agents/skills library) copy into the fixed COPY_TARGETS, and treat
+# living in ~/.agents/skills-unused as zero targets (fully disabled).
 
-install_count() {
+target_count_for_kind() {
+    if [ "$1" = "copy" ]; then
+        echo "${#COPY_TARGETS[@]}"
+    else
+        echo "${#TARGETS[@]}"
+    fi
+}
+
+install_count_link() {
     local name="$1"
     local c=0
     for target_base in "${TARGETS[@]}"; do
@@ -109,10 +191,35 @@ install_count() {
     echo "$c"
 }
 
+install_count_copy() {
+    local name="$1"
+    if [ -d "$AGENTS_UNUSED_DIR/$name" ]; then
+        echo 0
+        return
+    fi
+    local c=0
+    for target_base in "${COPY_TARGETS[@]}"; do
+        [ -d "$target_base/$name" ] && c=$((c + 1))
+    done
+    echo "$c"
+}
+
+install_count() {
+    local name="$1"
+    local kind
+    kind="$(skill_kind_by_name "$name")"
+    if [ "$kind" = "copy" ]; then
+        install_count_copy "$name"
+    else
+        install_count_link "$name"
+    fi
+}
+
 install_state() {
-    local c
+    local c total
     c="$(install_count "$1")"
-    if [ "$c" -eq "${#TARGETS[@]}" ]; then
+    total="$(target_count_for_kind "$(skill_kind_by_name "$1")")"
+    if [ "$c" -eq "$total" ]; then
         echo "full"
     elif [ "$c" -eq 0 ]; then
         echo "none"
@@ -146,20 +253,32 @@ ARROW='▸'
 
 interactive_menu() {
     local count=${#SKILL_NAMES[@]}
-    local total=${#TARGETS[@]}
     local cursor=0
 
     # Track per-target install state.
     # Preselect ON when any target has the symlink (including partial
     # installs) so the user sees them as installed; on apply we
     # reconcile to the desired state across all targets.
+    # For "copy" kind skills, the source location is the ground truth for
+    # enabled/disabled instead — a freshly-enabled skill with zero copies
+    # yet should still show checked (it'll be synced on apply).
     local selected=()
     local actual_count=()
+    local actual_total=()
     for i in $(seq 0 $((count - 1))); do
+        local name="${SKILL_NAMES[$i]}"
+        local kind="${SKILL_KIND[$i]}"
         local c
-        c="$(install_count "${SKILL_NAMES[$i]}")"
+        c="$(install_count "$name")"
         actual_count+=("$c")
-        if [ "$c" -gt 0 ]; then
+        actual_total+=("$(target_count_for_kind "$kind")")
+        if [ "$kind" = "copy" ]; then
+            if [ -d "$AGENTS_UNUSED_DIR/$name" ]; then
+                selected+=("0")
+            else
+                selected+=("1")
+            fi
+        elif [ "$c" -gt 0 ]; then
             selected+=("1")
         else
             selected+=("0")
@@ -171,14 +290,45 @@ interactive_menu() {
     cleanup() { tput cnorm 2>/dev/null || true; }
     trap cleanup EXIT
 
+    # Scrolling viewport: only render as many items as fit the terminal
+    # height, keeping the cursor inside the visible window. Without this,
+    # a list taller than the terminal scrolls the terminal itself and the
+    # cursor can end up above the visible area.
+    local scroll_offset=0
+
     while true; do
+        local term_rows
+        term_rows="$(tput lines 2>/dev/null || echo 24)"
+        # Each item is 2 lines (name + desc). Reserve rows for the header,
+        # footer, and scroll indicators; a little slack is fine.
+        local visible=$(( (term_rows - 9) / 2 ))
+        [ "$visible" -lt 3 ] && visible=3
+        [ "$visible" -gt "$count" ] && visible=$count
+
+        [ "$cursor" -lt "$scroll_offset" ] && scroll_offset=$cursor
+        [ "$cursor" -ge $((scroll_offset + visible)) ] && scroll_offset=$((cursor - visible + 1))
+        local max_offset=$((count - visible))
+        [ "$max_offset" -lt 0 ] && max_offset=0
+        [ "$scroll_offset" -gt "$max_offset" ] && scroll_offset=$max_offset
+        [ "$scroll_offset" -lt 0 ] && scroll_offset=0
+        local window_end=$((scroll_offset + visible - 1))
+        [ "$window_end" -gt $((count - 1)) ] && window_end=$((count - 1))
+
         # Clear screen and draw
         printf '\033[H\033[2J'
         echo -e "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
         echo -e "${DIM}↑/↓ navigate  ·  space toggle  ·  enter apply  ·  q quit${RESET}"
         echo ""
 
-        for i in $(seq 0 $((count - 1))); do
+        if [ "$scroll_offset" -gt 0 ]; then
+            echo -e "  ${DIM}↑ ${scroll_offset} more above${RESET}"
+        fi
+
+        for i in $(seq "$scroll_offset" "$window_end"); do
+            if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -lt "$count" ]; then
+                echo -e "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
+            fi
+
             local name="${SKILL_NAMES[$i]}"
             local desc="${SKILL_DESCS[$i]}"
             # Truncate long descriptions
@@ -205,11 +355,12 @@ interactive_menu() {
             #   selected=0, actual>0      → uninstall
             local indicator=""
             local c="${actual_count[$i]}"
-            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$total" ]; then
+            local t="${actual_total[$i]}"
+            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$t" ]; then
                 if [ "$c" -eq 0 ]; then
                     indicator=" ${GREEN}← install${RESET}"
                 else
-                    indicator=" ${CYAN}← repair (${c}/${total})${RESET}"
+                    indicator=" ${CYAN}← repair (${c}/${t})${RESET}"
                 fi
             elif [ "${selected[$i]}" = "0" ] && [ "$c" -gt 0 ]; then
                 indicator=" ${RED}← uninstall${RESET}"
@@ -219,13 +370,18 @@ interactive_menu() {
             echo -e "      ${DIM}${desc}${RESET}"
         done
 
+        if [ "$window_end" -lt $((count - 1)) ]; then
+            echo -e "  ${DIM}↓ $((count - 1 - window_end)) more below${RESET}"
+        fi
+
         echo ""
 
         # Count pending changes by comparing desired (selected) vs actual
         local installs=0 repairs=0 uninstalls=0
         for i in $(seq 0 $((count - 1))); do
             local c="${actual_count[$i]}"
-            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$total" ]; then
+            local t="${actual_total[$i]}"
+            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$t" ]; then
                 if [ "$c" -eq 0 ]; then
                     installs=$((installs + 1))
                 else
@@ -288,6 +444,59 @@ interactive_menu() {
     done
 }
 
+# Enable/disable a "copy" kind skill (~/.agents/skills library).
+# Enable: move skills-unused → skills (if needed), then sync copies out
+# to COPY_TARGETS. Disable: delete the copies, move skills → skills-unused.
+# Copies are re-synced on every apply (diffed first) so source edits
+# propagate without requiring an explicit toggle.
+apply_copy_skill() {
+    local i="$1"
+    local name="${SKILL_NAMES[$i]}"
+    local any_change=0
+
+    if [ "${selected[$i]}" = "1" ]; then
+        if [ -d "$AGENTS_UNUSED_DIR/$name" ]; then
+            mkdir -p "$AGENTS_SKILLS_DIR"
+            mv "$AGENTS_UNUSED_DIR/$name" "$AGENTS_SKILLS_DIR/$name"
+            echo -e "  ${GREEN}✓${RESET} Enabled ${BOLD}$name${RESET} ${DIM}(moved to ~/.agents/skills)${RESET}"
+            any_change=1
+        fi
+        local src="$AGENTS_SKILLS_DIR/$name"
+        local synced=0
+        for target_base in "${COPY_TARGETS[@]}"; do
+            mkdir -p "$target_base"
+            if [ ! -d "$target_base/$name" ] || ! diff -rq "$src" "$target_base/$name" >/dev/null 2>&1; then
+                rm -rf "${target_base:?}/${name:?}"
+                cp -R "$src" "$target_base/$name"
+                synced=$((synced + 1))
+            fi
+        done
+        if [ $synced -gt 0 ]; then
+            echo -e "  ${GREEN}✓${RESET} Synced ${BOLD}$name${RESET} ${DIM}(${synced} target(s))${RESET}"
+            any_change=1
+        fi
+    else
+        local removed=0
+        for target_base in "${COPY_TARGETS[@]}"; do
+            if [ -d "$target_base/$name" ]; then
+                rm -rf "${target_base:?}/${name:?}"
+                removed=$((removed + 1))
+            fi
+        done
+        if [ -d "$AGENTS_SKILLS_DIR/$name" ]; then
+            mkdir -p "$AGENTS_UNUSED_DIR"
+            mv "$AGENTS_SKILLS_DIR/$name" "$AGENTS_UNUSED_DIR/$name"
+            any_change=1
+        fi
+        if [ $removed -gt 0 ]; then
+            echo -e "  ${RED}✗${RESET} Disabled ${BOLD}$name${RESET} ${DIM}(${removed} copy/copies removed, moved to ~/.agents/skills-unused)${RESET}"
+            any_change=1
+        fi
+    fi
+
+    [ "$any_change" -eq 1 ]
+}
+
 # ── Apply install/uninstall changes ──
 # Reconciles each target directory to the desired state
 # (selected=1 → symlink present; selected=0 → symlink absent).
@@ -300,6 +509,14 @@ apply_changes() {
 
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
         local name="${SKILL_NAMES[$i]}"
+
+        if [ "${SKILL_KIND[$i]}" = "copy" ]; then
+            if apply_copy_skill "$i"; then
+                changed=$((changed + 1))
+            fi
+            continue
+        fi
+
         local src="${SKILL_PATHS[$i]}"
         local created=0
         local removed=0
@@ -376,9 +593,14 @@ usage() {
 }
 
 cmd_list() {
-    local total=${#TARGETS[@]}
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
+        if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -lt "${#SKILL_NAMES[@]}" ]; then
+            echo ""
+            echo "All skills (~/.agents/skills):"
+        fi
         local name="${SKILL_NAMES[$i]}"
+        local total
+        total="$(target_count_for_kind "${SKILL_KIND[$i]}")"
         local c
         c="$(install_count "$name")"
         if [ "$c" -eq "$total" ]; then
@@ -391,7 +613,7 @@ cmd_list() {
     done
 }
 
-cmd_install() {
+cmd_install_link() {
     local name="$1"
     local src
     local created=0
@@ -427,7 +649,41 @@ cmd_install() {
     echo "Installed: $name"
 }
 
-cmd_uninstall() {
+# Enable a "copy" kind skill: move it out of skills-unused (if needed),
+# then sync it into COPY_TARGETS. See apply_copy_skill for the same logic
+# used by the interactive UI.
+cmd_install_copy() {
+    local name="$1"
+    if [ ! -d "$AGENTS_SKILLS_DIR/$name" ] && [ ! -d "$AGENTS_UNUSED_DIR/$name" ]; then
+        echo "Unknown skill: $name" >&2; exit 1
+    fi
+    if [ -d "$AGENTS_UNUSED_DIR/$name" ]; then
+        mkdir -p "$AGENTS_SKILLS_DIR"
+        mv "$AGENTS_UNUSED_DIR/$name" "$AGENTS_SKILLS_DIR/$name"
+    fi
+    local src="$AGENTS_SKILLS_DIR/$name"
+    for target_base in "${COPY_TARGETS[@]}"; do
+        mkdir -p "$target_base"
+        if [ ! -d "$target_base/$name" ] || ! diff -rq "$src" "$target_base/$name" >/dev/null 2>&1; then
+            rm -rf "${target_base:?}/${name:?}"
+            cp -R "$src" "$target_base/$name"
+        fi
+    done
+    echo "Installed: $name"
+}
+
+cmd_install() {
+    local name="$1"
+    local kind
+    kind="$(skill_kind_by_name "$name")" || kind=""
+    if [ "$kind" = "copy" ]; then
+        cmd_install_copy "$name"
+    else
+        cmd_install_link "$name"
+    fi
+}
+
+cmd_uninstall_link() {
     local name="$1"
     local removed=0
     for target_base in "${TARGETS[@]}"; do
@@ -441,6 +697,41 @@ cmd_uninstall() {
         echo "Uninstalled: $name"
     else
         echo "Not installed: $name"
+    fi
+}
+
+# Disable a "copy" kind skill: delete the copies, move the folder from
+# ~/.agents/skills to ~/.agents/skills-unused (creating it if needed).
+cmd_uninstall_copy() {
+    local name="$1"
+    local removed=0
+    for target_base in "${COPY_TARGETS[@]}"; do
+        if [ -d "$target_base/$name" ]; then
+            rm -rf "${target_base:?}/${name:?}"
+            removed=$((removed + 1))
+        fi
+    done
+    local moved=0
+    if [ -d "$AGENTS_SKILLS_DIR/$name" ]; then
+        mkdir -p "$AGENTS_UNUSED_DIR"
+        mv "$AGENTS_SKILLS_DIR/$name" "$AGENTS_UNUSED_DIR/$name"
+        moved=1
+    fi
+    if [ $removed -gt 0 ] || [ $moved -gt 0 ]; then
+        echo "Uninstalled: $name"
+    else
+        echo "Not installed: $name"
+    fi
+}
+
+cmd_uninstall() {
+    local name="$1"
+    local kind
+    kind="$(skill_kind_by_name "$name")" || kind=""
+    if [ "$kind" = "copy" ]; then
+        cmd_uninstall_copy "$name"
+    else
+        cmd_uninstall_link "$name"
     fi
 }
 
