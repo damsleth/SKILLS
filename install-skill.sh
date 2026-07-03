@@ -297,22 +297,70 @@ interactive_menu() {
     local scroll_offset=0
 
     while true; do
-        local term_rows
-        term_rows="$(tput lines 2>/dev/null || echo 24)"
-        # Each item is 2 lines (name + desc). Reserve rows for the header,
-        # footer, and scroll indicators; a little slack is fine.
-        local visible=$(( (term_rows - 9) / 2 ))
-        [ "$visible" -lt 3 ] && visible=3
-        [ "$visible" -gt "$count" ] && visible=$count
+        local term_rows term_cols
+        # No stderr redirect here: this tput needs an ioctl on an fd still
+        # attached to the terminal to read the real size, and piping its
+        # stderr to /dev/null breaks that detection (falls back to 80x24).
+        term_rows="$(tput lines)" || term_rows=24
+        term_cols="$(tput cols)" || term_cols=80
+        # Descriptions wrap to the full terminal width instead of being
+        # truncated, so item height varies — a 6-char indent is reserved.
+        local text_width=$((term_cols - 6))
+        [ "$text_width" -lt 20 ] && text_width=20
 
-        [ "$cursor" -lt "$scroll_offset" ] && scroll_offset=$cursor
-        [ "$cursor" -ge $((scroll_offset + visible)) ] && scroll_offset=$((cursor - visible + 1))
-        local max_offset=$((count - visible))
-        [ "$max_offset" -lt 0 ] && max_offset=0
-        [ "$scroll_offset" -gt "$max_offset" ] && scroll_offset=$max_offset
+        # Wrap each description once per redraw (width may have changed)
+        # and record how many terminal rows each item occupies: the name
+        # line, its wrapped description lines, and +1 for the "All skills"
+        # heading immediately above the first library item.
+        local wrapped_desc=() item_height=()
+        for i in $(seq 0 $((count - 1))); do
+            local w
+            w="$(printf '%s' "${SKILL_DESCS[$i]}" | fold -s -w "$text_width")"
+            wrapped_desc[i]="$w"
+            local lines=$(($(printf '%s\n' "$w" | wc -l)))
+            local h=$((1 + lines))
+            if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -gt 0 ] && [ "$REPO_SKILL_COUNT" -lt "$count" ]; then
+                h=$((h + 1))
+            fi
+            item_height[i]=$h
+        done
+
+        # Header (3 lines) + blank + summary (2 lines) + a little slack.
+        local available=$((term_rows - 7))
+        [ "$available" -lt 3 ] && available=3
+
+        # Keep the cursor inside the window. Items have variable height,
+        # so this is a greedy line-budget fit rather than fixed-size math.
+        if [ "$cursor" -lt "$scroll_offset" ]; then
+            scroll_offset=$cursor
+        else
+            local used=0 j
+            for ((j = scroll_offset; j <= cursor; j++)); do
+                used=$((used + item_height[j]))
+            done
+            if [ "$used" -gt "$available" ]; then
+                # Anchor the cursor as the last visible item: walk backward
+                # accumulating heights until the budget would be exceeded.
+                local budget=0 start=$cursor
+                for ((j = cursor; j >= 0; j--)); do
+                    budget=$((budget + item_height[j]))
+                    [ "$budget" -gt "$available" ] && break
+                    start=$j
+                done
+                scroll_offset=$start
+            fi
+        fi
         [ "$scroll_offset" -lt 0 ] && scroll_offset=0
-        local window_end=$((scroll_offset + visible - 1))
-        [ "$window_end" -gt $((count - 1)) ] && window_end=$((count - 1))
+
+        # From scroll_offset, fit forward as many items as the budget allows.
+        local window_end=$scroll_offset used=0
+        for ((j = scroll_offset; j < count; j++)); do
+            used=$((used + item_height[j]))
+            if [ "$used" -gt "$available" ] && [ "$j" -gt "$scroll_offset" ]; then
+                break
+            fi
+            window_end=$j
+        done
 
         # Clear screen and draw
         printf '\033[H\033[2J'
@@ -330,11 +378,6 @@ interactive_menu() {
             fi
 
             local name="${SKILL_NAMES[$i]}"
-            local desc="${SKILL_DESCS[$i]}"
-            # Truncate long descriptions
-            if [ ${#desc} -gt 60 ]; then
-                desc="${desc:0:57}..."
-            fi
 
             local prefix=""
             if [ "$i" -eq "$cursor" ]; then
@@ -367,7 +410,9 @@ interactive_menu() {
             fi
 
             echo -e "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
-            echo -e "      ${DIM}${desc}${RESET}"
+            while IFS= read -r descline; do
+                echo -e "      ${DIM}${descline}${RESET}"
+            done <<< "${wrapped_desc[$i]}"
         done
 
         if [ "$window_end" -lt $((count - 1)) ]; then
