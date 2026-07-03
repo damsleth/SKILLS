@@ -251,9 +251,87 @@ ARROW='▸'
 
 # ── Interactive checkbox UI ──
 
+# Fuzzy (subsequence) match: every character of needle appears in haystack
+# in order, not necessarily contiguous. Both args are expected lowercase
+# already. Empty needle matches everything.
+fuzzy_match() {
+    local haystack="$1" needle="$2"
+    [ -z "$needle" ] && return 0
+    local i=0 hlen=${#haystack} nlen=${#needle} ni=0
+    while [ "$i" -lt "$hlen" ] && [ "$ni" -lt "$nlen" ]; do
+        [ "${haystack:$i:1}" = "${needle:$ni:1}" ] && ni=$((ni + 1))
+        i=$((i + 1))
+    done
+    [ "$ni" -eq "$nlen" ]
+}
+
+# Match rule for one skill: true fuzzy (subsequence) against the name alone
+# — good for typo/abbreviation search like "cjvd" -> cj-voice-dna — OR every
+# whitespace-separated word of the query is a literal substring somewhere in
+# the full haystack (name + description). Subsequence matching against a
+# whole paragraph matches almost any short query, so description search
+# needs literal word containment instead of fuzzy. Both args lowercase
+# already; haystack is "name description".
+filter_match() {
+    local haystack="$1" query="$2"
+    [ -z "$query" ] && return 0
+    fuzzy_match "${haystack%% *}" "$query" && return 0
+    local words word
+    read -ra words <<< "$query"
+    for word in "${words[@]}"; do
+        case "$haystack" in
+            *"$word"*) ;;
+            *) return 1 ;;
+        esac
+    done
+    return 0
+}
+
+# Recompute which skill indices match the current filter_query, and keep
+# the cursor on the same skill if it's still visible (else clamp). Reads
+# and writes locals from the calling interactive_menu frame.
+recompute_filter() {
+    local prev_idx=""
+    [ "${#visible_indices[@]}" -gt 0 ] && prev_idx="${visible_indices[$cursor_pos]:-}"
+
+    local q_lower
+    q_lower="$(printf '%s' "$filter_query" | tr '[:upper:]' '[:lower:]')"
+    visible_indices=()
+    local i
+    for i in $(seq 0 $((count - 1))); do
+        filter_match "${SEARCH_HAYSTACK[$i]}" "$q_lower" && visible_indices+=("$i")
+    done
+
+    cursor_pos=0
+    if [ -n "$prev_idx" ] && [ "${#visible_indices[@]}" -gt 0 ]; then
+        # macOS/BSD `seq 0 -1` reverses instead of emitting nothing like
+        # GNU seq, so this loop must never run against an empty array.
+        local k
+        for k in $(seq 0 $((${#visible_indices[@]} - 1))); do
+            if [ "${visible_indices[$k]}" = "$prev_idx" ]; then
+                cursor_pos=$k
+                break
+            fi
+        done
+    fi
+    local max_pos=$((${#visible_indices[@]} - 1))
+    [ "$max_pos" -lt 0 ] && max_pos=0
+    [ "$cursor_pos" -gt "$max_pos" ] && cursor_pos=$max_pos
+    scroll_offset=0
+}
+
+# Does visible position vi (whose skill index is i) start the "All skills"
+# library section? True for a copy-kind item that's either first in the
+# filtered view or immediately follows a non-copy item.
+is_section_start() {
+    local vi="$1" i="$2"
+    [ "${SKILL_KIND[$i]}" = "copy" ] || return 1
+    [ "$vi" -eq 0 ] && return 0
+    [ "${SKILL_KIND[${visible_indices[$((vi - 1))]}]}" != "copy" ]
+}
+
 interactive_menu() {
     local count=${#SKILL_NAMES[@]}
-    local cursor=0
 
     # Track per-target install state.
     # Preselect ON when any target has the symlink (including partial
@@ -265,6 +343,7 @@ interactive_menu() {
     local selected=()
     local actual_count=()
     local actual_total=()
+    local SEARCH_HAYSTACK=()
     for i in $(seq 0 $((count - 1))); do
         local name="${SKILL_NAMES[$i]}"
         local kind="${SKILL_KIND[$i]}"
@@ -283,6 +362,7 @@ interactive_menu() {
         else
             selected+=("0")
         fi
+        SEARCH_HAYSTACK[i]="$(printf '%s %s' "$name" "${SKILL_DESCS[$i]}" | tr '[:upper:]' '[:lower:]')"
     done
 
     # Hide cursor, restore on exit
@@ -295,6 +375,14 @@ interactive_menu() {
     # a list taller than the terminal scrolls the terminal itself and the
     # cursor can end up above the visible area.
     local scroll_offset=0
+    # "t" hides/shows description lines. "/" opens live fuzzy-filter typing
+    # (matches name + description); enter commits it, esc clears it.
+    local show_desc=1
+    local filter_mode=0
+    local filter_query=""
+    local visible_indices=()
+    local cursor_pos=0
+    recompute_filter
 
     while true; do
         local term_rows term_cols
@@ -308,41 +396,54 @@ interactive_menu() {
         local text_width=$((term_cols - 6))
         [ "$text_width" -lt 20 ] && text_width=20
 
-        # Wrap each description once per redraw (width may have changed)
-        # and record how many terminal rows each item occupies: the name
-        # line, its wrapped description lines, and +1 for the "All skills"
-        # heading immediately above the first library item.
-        local wrapped_desc=() item_height=()
-        for i in $(seq 0 $((count - 1))); do
-            local w
-            w="$(printf '%s' "${SKILL_DESCS[$i]}" | fold -s -w "$text_width")"
-            wrapped_desc[i]="$w"
-            local lines=$(($(printf '%s\n' "$w" | wc -l)))
-            local h=$((1 + lines))
-            if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -gt 0 ] && [ "$REPO_SKILL_COUNT" -lt "$count" ]; then
-                h=$((h + 1))
-            fi
-            item_height[i]=$h
-        done
+        local visible_count=${#visible_indices[@]}
+        local cursor=-1
+        [ "$visible_count" -gt 0 ] && cursor="${visible_indices[$cursor_pos]}"
 
-        # Header (3 lines) + blank + summary (2 lines) + a little slack.
-        local available=$((term_rows - 7))
+        # Wrap each visible description once per redraw (width may have
+        # changed) and record how many terminal rows each item occupies:
+        # the name line, its wrapped description lines (if shown), and +1
+        # for the "All skills" heading right above the first library item.
+        local wrapped_desc=() item_height=()
+        local vi i
+        # macOS/BSD `seq 0 -1` reverses instead of emitting nothing like
+        # GNU seq, so this loop must never run when nothing is visible
+        # (e.g. a filter with zero matches).
+        if [ "$visible_count" -gt 0 ]; then
+            for vi in $(seq 0 $((visible_count - 1))); do
+                i="${visible_indices[$vi]}"
+                local w="" lines=0
+                if [ "$show_desc" = "1" ]; then
+                    w="$(printf '%s' "${SKILL_DESCS[$i]}" | fold -s -w "$text_width")"
+                    lines=$(($(printf '%s\n' "$w" | wc -l)))
+                fi
+                wrapped_desc[i]="$w"
+                local h=$((1 + lines))
+                is_section_start "$vi" "$i" && h=$((h + 1))
+                item_height[vi]=$h
+            done
+        fi
+
+        # Header (4 lines) + blank + summary (2 lines) + a little slack.
+        local available=$((term_rows - 8))
         [ "$available" -lt 3 ] && available=3
 
         # Keep the cursor inside the window. Items have variable height,
         # so this is a greedy line-budget fit rather than fixed-size math.
-        if [ "$cursor" -lt "$scroll_offset" ]; then
-            scroll_offset=$cursor
+        if [ "$visible_count" -eq 0 ]; then
+            scroll_offset=0
+        elif [ "$cursor_pos" -lt "$scroll_offset" ]; then
+            scroll_offset=$cursor_pos
         else
             local used=0 j
-            for ((j = scroll_offset; j <= cursor; j++)); do
+            for ((j = scroll_offset; j <= cursor_pos; j++)); do
                 used=$((used + item_height[j]))
             done
             if [ "$used" -gt "$available" ]; then
                 # Anchor the cursor as the last visible item: walk backward
                 # accumulating heights until the budget would be exceeded.
-                local budget=0 start=$cursor
-                for ((j = cursor; j >= 0; j--)); do
+                local budget=0 start=$cursor_pos
+                for ((j = cursor_pos; j >= 0; j--)); do
                     budget=$((budget + item_height[j]))
                     [ "$budget" -gt "$available" ] && break
                     start=$j
@@ -354,7 +455,7 @@ interactive_menu() {
 
         # From scroll_offset, fit forward as many items as the budget allows.
         local window_end=$scroll_offset used=0
-        for ((j = scroll_offset; j < count; j++)); do
+        for ((j = scroll_offset; j < visible_count; j++)); do
             used=$((used + item_height[j]))
             if [ "$used" -gt "$available" ] && [ "$j" -gt "$scroll_offset" ]; then
                 break
@@ -365,63 +466,81 @@ interactive_menu() {
         # Clear screen and draw
         printf '\033[H\033[2J'
         echo -e "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
-        echo -e "${DIM}↑/↓ navigate  ·  space toggle  ·  enter apply  ·  q quit${RESET}"
+        if [ "$filter_mode" = "1" ]; then
+            echo -e "${DIM}type to filter  ·  enter confirm  ·  esc cancel${RESET}"
+            echo -e "${CYAN}/${RESET}${filter_query}${DIM}▌${RESET}"
+        else
+            echo -e "${DIM}↑/↓ navigate  ·  space toggle  ·  t descriptions  ·  / filter  ·  enter apply  ·  q quit${RESET}"
+            if [ -n "$filter_query" ]; then
+                echo -e "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es) — esc to clear)${RESET}"
+            else
+                echo ""
+            fi
+        fi
         echo ""
+
+        if [ "$visible_count" -eq 0 ]; then
+            echo -e "  ${DIM}No matches${RESET}"
+        fi
 
         if [ "$scroll_offset" -gt 0 ]; then
             echo -e "  ${DIM}↑ ${scroll_offset} more above${RESET}"
         fi
 
-        for i in $(seq "$scroll_offset" "$window_end"); do
-            if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -lt "$count" ]; then
-                echo -e "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
-            fi
+        if [ "$visible_count" -gt 0 ]; then
+            for vi in $(seq "$scroll_offset" "$window_end"); do
+                i="${visible_indices[$vi]}"
+                is_section_start "$vi" "$i" && echo -e "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
 
-            local name="${SKILL_NAMES[$i]}"
+                local name="${SKILL_NAMES[$i]}"
 
-            local prefix=""
-            if [ "$i" -eq "$cursor" ]; then
-                prefix="${CYAN}${ARROW}${RESET} "
-            else
-                prefix="  "
-            fi
-
-            local checkbox=""
-            if [ "${selected[$i]}" = "1" ]; then
-                checkbox="${GREEN}${CHECK}${RESET}"
-            else
-                checkbox="${DIM}${EMPTY}${RESET}"
-            fi
-
-            # Show change indicator based on reconciliation:
-            #   selected=1, actual<total  → install (or repair if partial)
-            #   selected=0, actual>0      → uninstall
-            local indicator=""
-            local c="${actual_count[$i]}"
-            local t="${actual_total[$i]}"
-            if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$t" ]; then
-                if [ "$c" -eq 0 ]; then
-                    indicator=" ${GREEN}← install${RESET}"
+                local prefix=""
+                if [ "$vi" -eq "$cursor_pos" ]; then
+                    prefix="${CYAN}${ARROW}${RESET} "
                 else
-                    indicator=" ${CYAN}← repair (${c}/${t})${RESET}"
+                    prefix="  "
                 fi
-            elif [ "${selected[$i]}" = "0" ] && [ "$c" -gt 0 ]; then
-                indicator=" ${RED}← uninstall${RESET}"
-            fi
 
-            echo -e "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
-            while IFS= read -r descline; do
-                echo -e "      ${DIM}${descline}${RESET}"
-            done <<< "${wrapped_desc[$i]}"
-        done
+                local checkbox=""
+                if [ "${selected[$i]}" = "1" ]; then
+                    checkbox="${GREEN}${CHECK}${RESET}"
+                else
+                    checkbox="${DIM}${EMPTY}${RESET}"
+                fi
 
-        if [ "$window_end" -lt $((count - 1)) ]; then
-            echo -e "  ${DIM}↓ $((count - 1 - window_end)) more below${RESET}"
+                # Show change indicator based on reconciliation:
+                #   selected=1, actual<total  → install (or repair if partial)
+                #   selected=0, actual>0      → uninstall
+                local indicator=""
+                local c="${actual_count[$i]}"
+                local t="${actual_total[$i]}"
+                if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$t" ]; then
+                    if [ "$c" -eq 0 ]; then
+                        indicator=" ${GREEN}← install${RESET}"
+                    else
+                        indicator=" ${CYAN}← repair (${c}/${t})${RESET}"
+                    fi
+                elif [ "${selected[$i]}" = "0" ] && [ "$c" -gt 0 ]; then
+                    indicator=" ${RED}← uninstall${RESET}"
+                fi
+
+                echo -e "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
+                if [ "$show_desc" = "1" ]; then
+                    while IFS= read -r descline; do
+                        echo -e "      ${DIM}${descline}${RESET}"
+                    done <<< "${wrapped_desc[$i]}"
+                fi
+            done
+        fi
+
+        if [ "$window_end" -lt $((visible_count - 1)) ]; then
+            echo -e "  ${DIM}↓ $((visible_count - 1 - window_end)) more below${RESET}"
         fi
 
         echo ""
 
-        # Count pending changes by comparing desired (selected) vs actual
+        # Count pending changes across ALL skills (not just the filtered
+        # view) by comparing desired (selected) vs actual.
         local installs=0 repairs=0 uninstalls=0
         for i in $(seq 0 $((count - 1))); do
             local c="${actual_count[$i]}"
@@ -455,19 +574,52 @@ interactive_menu() {
 
         # Read single keypress
         IFS= read -rsn1 key
+
+        if [ "$filter_mode" = "1" ]; then
+            case "$key" in
+                '')  # Enter — commit filter, resume navigation
+                    filter_mode=0
+                    ;;
+                $'\x7f'|$'\x08')  # Backspace
+                    filter_query="${filter_query%?}"
+                    recompute_filter
+                    ;;
+                $'\x1b')  # Esc — cancel typing and clear the filter
+                    filter_query=""
+                    filter_mode=0
+                    recompute_filter
+                    ;;
+                *)
+                    if [ -n "$key" ]; then
+                        filter_query+="$key"
+                        recompute_filter
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
         case "$key" in
             A|k)  # Up / k
-                [ $cursor -gt 0 ] && cursor=$((cursor - 1))
+                [ "$cursor_pos" -gt 0 ] && cursor_pos=$((cursor_pos - 1))
                 ;;
             B|j)  # Down / j
-                [ $cursor -lt $((count - 1)) ] && cursor=$((cursor + 1))
+                [ "$cursor_pos" -lt $((visible_count - 1)) ] && cursor_pos=$((cursor_pos + 1))
                 ;;
             ' ')  # Space — toggle
-                if [ "${selected[cursor]}" = "1" ]; then
-                    selected[cursor]="0"
-                else
-                    selected[cursor]="1"
+                if [ "$cursor" -ge 0 ]; then
+                    if [ "${selected[$cursor]}" = "1" ]; then
+                        selected[cursor]="0"
+                    else
+                        selected[cursor]="1"
+                    fi
                 fi
+                ;;
+            t)    # Toggle description visibility
+                if [ "$show_desc" = "1" ]; then show_desc=0; else show_desc=1; fi
+                ;;
+            /)    # Enter filter mode (keeps any existing query to refine)
+                filter_mode=1
                 ;;
             '')   # Enter — apply
                 apply_changes
@@ -478,12 +630,18 @@ interactive_menu() {
                 echo "No changes made."
                 return
                 ;;
-            $'\x1b')  # Escape sequence — read the rest
-                read -rsn2 rest
-                case "$rest" in
-                    '[A') [ $cursor -gt 0 ] && cursor=$((cursor - 1)) ;;
-                    '[B') [ $cursor -lt $((count - 1)) ] && cursor=$((cursor + 1)) ;;
-                esac
+            $'\x1b')  # Escape sequence — arrow key, or a lone Esc clears an active filter
+                local rest1 rest2
+                if IFS= read -rsn1 -t 0.05 rest1 2>/dev/null && [ "$rest1" = "[" ]; then
+                    IFS= read -rsn1 -t 0.05 rest2 2>/dev/null || true
+                    case "$rest2" in
+                        A) [ "$cursor_pos" -gt 0 ] && cursor_pos=$((cursor_pos - 1)) ;;
+                        B) [ "$cursor_pos" -lt $((visible_count - 1)) ] && cursor_pos=$((cursor_pos + 1)) ;;
+                    esac
+                elif [ -n "$filter_query" ]; then
+                    filter_query=""
+                    recompute_filter
+                fi
                 ;;
         esac
     done
