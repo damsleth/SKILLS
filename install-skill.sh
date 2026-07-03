@@ -330,6 +330,15 @@ is_section_start() {
     [ "${SKILL_KIND[${visible_indices[$((vi - 1))]}]}" != "copy" ]
 }
 
+# Print one redraw line (same backslash color-code interpretation as
+# `echo -e`), then clear to end of line. Redrawing in place without a full
+# screen clear avoids flicker, but a shorter line doesn't erase whatever a
+# longer line left behind at the same row in the previous frame — this
+# does, per line, without blanking the whole screen first.
+line() {
+    printf '%b\033[K\n' "$1"
+}
+
 interactive_menu() {
     local count=${#SKILL_NAMES[@]}
 
@@ -472,32 +481,32 @@ interactive_menu() {
         # clearing first — clearing then redrawing paints a blank frame in
         # between, which is what causes the visible flicker.
         printf '\033[H'
-        echo -e "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
+        line "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
         if [ "$filter_mode" = "1" ]; then
-            echo -e "${DIM}type to filter  ·  enter confirm  ·  esc cancel${RESET}"
-            echo -e "${CYAN}/${RESET}${filter_query}${DIM}▌${RESET}"
+            line "${DIM}type to filter  ·  enter confirm  ·  esc cancel${RESET}"
+            line "${CYAN}/${RESET}${filter_query}${DIM}▌${RESET}"
         else
-            echo -e "${DIM}↑/↓ navigate  ·  space toggle  ·  t descriptions  ·  / filter  ·  enter apply  ·  q quit${RESET}"
+            line "${DIM}↑/↓ navigate  ·  space toggle  ·  t descriptions  ·  / filter  ·  enter apply  ·  q quit${RESET}"
             if [ -n "$filter_query" ]; then
-                echo -e "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es) — esc to clear)${RESET}"
+                line "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es) — esc to clear)${RESET}"
             else
-                echo ""
+                line ""
             fi
         fi
-        echo ""
+        line ""
 
         if [ "$visible_count" -eq 0 ]; then
-            echo -e "  ${DIM}No matches${RESET}"
+            line "  ${DIM}No matches${RESET}"
         fi
 
         if [ "$scroll_offset" -gt 0 ]; then
-            echo -e "  ${DIM}↑ ${scroll_offset} more above${RESET}"
+            line "  ${DIM}↑ ${scroll_offset} more above${RESET}"
         fi
 
         if [ "$visible_count" -gt 0 ]; then
             for vi in $(seq "$scroll_offset" "$window_end"); do
                 i="${visible_indices[$vi]}"
-                is_section_start "$vi" "$i" && echo -e "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
+                is_section_start "$vi" "$i" && line "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
 
                 local name="${SKILL_NAMES[$i]}"
 
@@ -531,20 +540,20 @@ interactive_menu() {
                     indicator=" ${RED}← uninstall${RESET}"
                 fi
 
-                echo -e "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
+                line "${prefix}${checkbox}  ${BOLD}${name}${RESET}${indicator}"
                 if [ "$show_desc" = "1" ]; then
                     while IFS= read -r descline; do
-                        echo -e "      ${DIM}${descline}${RESET}"
+                        line "      ${DIM}${descline}${RESET}"
                     done <<< "${wrapped_desc[$i]}"
                 fi
             done
         fi
 
         if [ "$window_end" -lt $((visible_count - 1)) ]; then
-            echo -e "  ${DIM}↓ $((visible_count - 1 - window_end)) more below${RESET}"
+            line "  ${DIM}↓ $((visible_count - 1 - window_end)) more below${RESET}"
         fi
 
-        echo ""
+        line ""
 
         # Count pending changes across ALL skills (not just the filtered
         # view) by comparing desired (selected) vs actual.
@@ -574,9 +583,9 @@ interactive_menu() {
                 summary="${summary}${sep}${p}"
                 sep=", "
             done
-            echo -e "  ${summary}  ${DIM}— press enter to apply${RESET}"
+            line "  ${summary}  ${DIM}— press enter to apply${RESET}"
         else
-            echo -e "  ${DIM}No changes${RESET}"
+            line "  ${DIM}No changes${RESET}"
         fi
 
         # Erase any leftover content below this frame (e.g. the previous
