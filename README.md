@@ -6,6 +6,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 
 | Skill | Description |
 |-------|-------------|
+| **cj-automate** | Audit a workflow and propose automations ordered by leverage — remove humans from transport steps first, collapse waits second, optimize speed last |
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
 | **cj-things** | Manage Things 3 tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus read views with JSON output. Pairs with cj-notes and feeds cj-weekly-review. ([things3-cli](https://github.com/ossianhempel/things3-cli)) |
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
@@ -22,6 +23,8 @@ Run the interactive installer to symlink skills into your agent's skill director
 ```
 
 This creates symlinks in `~/.claude/skills/`, `~/.codex/skills/`, and `~/.copilot/skills/`.
+
+Extra skill folders (e.g. a private repo) can be added from the menu with `a` and removed with `ctrl+d` on the folder header. They are stored in `~/.agents/install-skill.json`.
 
 You can also install/uninstall non-interactively:
 

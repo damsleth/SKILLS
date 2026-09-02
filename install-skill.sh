@@ -32,32 +32,55 @@ COPY_TARGETS=(
     "$HOME/.copilot/skills"
 )
 
+# ── Extra skill folders (user config) ──
+#
+# ~/.agents/install-skill.json: {"folders": ["~/code/SKILLS-private", ...]}
+# Each folder is scanned like this repo (dir/*/SKILL.md + dir/personal/*/)
+# and shown as its own group. Added/removed from the interactive menu.
+
+CONFIG_FILE="$HOME/.agents/install-skill.json"
+
+# ponytail: flat {"folders":[...]} parsed with sed, no jq dependency.
+# Paths containing a double quote are not supported.
+config_folders() {
+    [ -f "$CONFIG_FILE" ] || return 0
+    tr -d '\n' < "$CONFIG_FILE" | sed 's/.*"folders"[^[]*\[//; s/\].*//' | grep -o '"[^"]*"' | tr -d '"' || true
+}
+
+write_config() {
+    mkdir -p "$(dirname "$CONFIG_FILE")"
+    local sep="" f
+    {
+        printf '{"folders": ['
+        for f in "$@"; do printf '%s"%s"' "$sep" "$f"; sep=", "; done
+        printf ']}\n'
+    } > "$CONFIG_FILE"
+}
+
+CONFIG_FOLDERS=()
+while IFS= read -r f; do [ -n "$f" ] && CONFIG_FOLDERS+=("$f"); done < <(config_folders)
+
 # ── Discover skills (subfolders containing SKILL.md) ──
+#
+# One flat list of entries. Kinds:
+#   group — a folder header row (path in SKILL_PATHS, no install state)
+#   link  — repo/config-folder skill, symlinked into TARGETS
+#   copy  — ~/.agents/skills library skill, copied into COPY_TARGETS
+# SKILL_GROUP[i] is the index of the group header a skill belongs to
+# (a header points at itself).
 
 SKILL_NAMES=()
 SKILL_DESCS=()
 SKILL_PATHS=()
-
-# Scan both the repo root (public skills) and personal/ (gitignored).
-# personal/ is optional - the repo is public and most clones won't have one.
-shopt -s nullglob
-for dir in "$SCRIPT_DIR"/*/ "$SCRIPT_DIR"/personal/*/; do
-    [ -f "$dir/SKILL.md" ] || continue
-    name="$(basename "$dir")"
-    [ "$name" = "personal" ] && continue
-    desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
-    desc="${desc:-(no description)}"
-    SKILL_NAMES+=("$name")
-    SKILL_DESCS+=("$desc")
-    SKILL_PATHS+=("${dir%/}")
-done
-shopt -u nullglob
+SKILL_KIND=()
+SKILL_GROUP=()
+CUR_GROUP=0
 
 # Lookup a skill's source path by name (returns empty if not found).
 skill_path_by_name() {
     local want="$1" i
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
-        if [ "${SKILL_NAMES[$i]}" = "$want" ]; then
+        if [ "${SKILL_NAMES[$i]}" = "$want" ] && [ "${SKILL_KIND[$i]}" != "group" ]; then
             echo "${SKILL_PATHS[$i]}"
             return 0
         fi
@@ -65,16 +88,10 @@ skill_path_by_name() {
     return 1
 }
 
-# All repo/personal skills use kind "link" (symlinked). Skills discovered
-# below in the ~/.agents/skills library use kind "copy" (copied, not linked).
-SKILL_KIND=()
-for _ in "${SKILL_NAMES[@]}"; do SKILL_KIND+=("link"); done
-REPO_SKILL_COUNT=${#SKILL_NAMES[@]}
-
 skill_kind_by_name() {
     local want="$1" i
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
-        if [ "${SKILL_NAMES[$i]}" = "$want" ]; then
+        if [ "${SKILL_NAMES[$i]}" = "$want" ] && [ "${SKILL_KIND[$i]}" != "group" ]; then
             echo "${SKILL_KIND[$i]}"
             return 0
         fi
@@ -82,52 +99,73 @@ skill_kind_by_name() {
     return 1
 }
 
-# Scan the "all skills" library: real directories in ~/.agents/skills
-# (enabled) and ~/.agents/skills-unused (disabled). Symlinks inside
-# ~/.agents/skills are repo skills mirrored there via TARGETS above —
-# those stay link-only and are never listed here.
+add_group() {  # <name> <path-as-displayed>
+    CUR_GROUP=${#SKILL_NAMES[@]}
+    SKILL_NAMES+=("$1"); SKILL_DESCS+=(""); SKILL_PATHS+=("$2")
+    SKILL_KIND+=("group"); SKILL_GROUP+=("$CUR_GROUP")
+}
+
+add_skill() {  # <dir> <kind>
+    local dir="${1%/}" name desc
+    name="$(basename "$dir")"
+    if skill_path_by_name "$name" >/dev/null 2>&1; then
+        echo "Warning: $dir collides with an existing skill name - skipping" >&2
+        return 0
+    fi
+    desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
+    SKILL_NAMES+=("$name"); SKILL_DESCS+=("${desc:-(no description)}"); SKILL_PATHS+=("$dir")
+    SKILL_KIND+=("$2"); SKILL_GROUP+=("$CUR_GROUP")
+}
+
+# Scan a skills folder: dir/*/ (public) and dir/personal/*/ (gitignored,
+# optional - most clones won't have one).
+scan_folder() {
+    local d
+    for d in "$1"/*/ "$1"/personal/*/; do
+        [ "$(basename "$d")" = "personal" ] && continue
+        [ -f "$d/SKILL.md" ] && add_skill "$d" link
+    done
+    return 0
+}
+
 shopt -s nullglob
-if [ -d "$AGENTS_SKILLS_DIR" ]; then
-    for dir in "$AGENTS_SKILLS_DIR"/*/; do
-        entry="${dir%/}"
-        [ -L "$entry" ] && continue
-        [ -f "$dir/SKILL.md" ] || continue
-        name="$(basename "$dir")"
-        if skill_path_by_name "$name" >/dev/null 2>&1; then
-            echo "Warning: ~/.agents/skills/$name collides with an existing skill name - skipping" >&2
-            continue
-        fi
-        desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
-        desc="${desc:-(no description)}"
-        SKILL_NAMES+=("$name")
-        SKILL_DESCS+=("$desc")
-        SKILL_PATHS+=("$entry")
-        SKILL_KIND+=("copy")
-    done
-fi
-if [ -d "$AGENTS_UNUSED_DIR" ]; then
-    for dir in "$AGENTS_UNUSED_DIR"/*/; do
-        entry="${dir%/}"
-        [ -f "$dir/SKILL.md" ] || continue
-        name="$(basename "$dir")"
-        if skill_path_by_name "$name" >/dev/null 2>&1; then
-            echo "Warning: ~/.agents/skills-unused/$name collides with an existing skill name - skipping" >&2
-            continue
-        fi
-        desc=$(sed -n 's/^description: *//p' "$dir/SKILL.md" | head -1)
-        desc="${desc:-(no description)}"
-        SKILL_NAMES+=("$name")
-        SKILL_DESCS+=("$desc")
-        SKILL_PATHS+=("$entry")
-        SKILL_KIND+=("copy")
-    done
+add_group "$(basename "$SCRIPT_DIR")" "$SCRIPT_DIR"
+scan_folder "$SCRIPT_DIR"
+
+for f in "${CONFIG_FOLDERS[@]}"; do
+    d="${f/#\~/$HOME}"
+    add_group "$(basename "$d")" "$f"
+    if [ -d "$d" ]; then scan_folder "$d"; else echo "Warning: skills folder $f not found" >&2; fi
+done
+
+# The "all skills" library: real directories in ~/.agents/skills (enabled)
+# and ~/.agents/skills-unused (disabled). Symlinks inside ~/.agents/skills
+# are repo skills mirrored there via TARGETS above — never listed here.
+add_group "All skills" "$AGENTS_SKILLS_DIR"
+for d in "$AGENTS_SKILLS_DIR"/*/; do
+    [ -L "${d%/}" ] && continue
+    [ -f "$d/SKILL.md" ] && add_skill "$d" copy
+done
+for d in "$AGENTS_UNUSED_DIR"/*/; do
+    [ -f "$d/SKILL.md" ] && add_skill "$d" copy
+done
+# Hide the library header when the library is empty.
+if [ "$CUR_GROUP" -eq $((${#SKILL_NAMES[@]} - 1)) ]; then
+    unset "SKILL_NAMES[$CUR_GROUP]" "SKILL_DESCS[$CUR_GROUP]" "SKILL_PATHS[$CUR_GROUP]" "SKILL_KIND[$CUR_GROUP]" "SKILL_GROUP[$CUR_GROUP]"
 fi
 shopt -u nullglob
 
-if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
+if [ "$(printf '%s\n' "${SKILL_KIND[@]}" | grep -vc group)" -eq 0 ]; then
     echo "No skills found (folders with SKILL.md) in $SCRIPT_DIR or $AGENTS_SKILLS_DIR"
     exit 1
 fi
+
+# Is this group header a user-configured folder (removable from the menu)?
+is_config_group() {
+    local f
+    for f in "${CONFIG_FOLDERS[@]}"; do [ "$f" = "${SKILL_PATHS[$1]}" ] && return 0; done
+    return 1
+}
 
 # ── Per-skill companion-CLI hooks ──
 #
@@ -297,9 +335,21 @@ recompute_filter() {
     local q_lower
     q_lower="$(printf '%s' "$filter_query" | tr '[:upper:]' '[:lower:]')"
     visible_indices=()
-    local i
-    for i in $(seq 0 $((count - 1))); do
-        filter_match "${SEARCH_HAYSTACK[$i]}" "$q_lower" && visible_indices+=("$i")
+    # Two passes: skills match on their own text; a group header is shown
+    # when any of its skills match (or always, with no filter, so empty
+    # folders can still be removed).
+    local i matched=()
+    for ((i = 0; i < count; i++)); do
+        matched[i]=0
+        if [ "${SKILL_KIND[$i]}" = "group" ]; then
+            [ -z "$q_lower" ] && matched[i]=1
+        elif filter_match "${SEARCH_HAYSTACK[$i]}" "$q_lower"; then
+            matched[i]=1
+            matched[${SKILL_GROUP[$i]}]=1
+        fi
+    done
+    for ((i = 0; i < count; i++)); do
+        [ "${matched[$i]}" = "1" ] && visible_indices+=("$i")
     done
 
     cursor_pos=0
@@ -307,7 +357,7 @@ recompute_filter() {
         # macOS/BSD `seq 0 -1` reverses instead of emitting nothing like
         # GNU seq, so this loop must never run against an empty array.
         local k
-        for k in $(seq 0 $((${#visible_indices[@]} - 1))); do
+        for ((k = 0; k < ${#visible_indices[@]}; k++)); do
             if [ "${visible_indices[$k]}" = "$prev_idx" ]; then
                 cursor_pos=$k
                 break
@@ -320,14 +370,34 @@ recompute_filter() {
     scroll_offset=0
 }
 
-# Does visible position vi (whose skill index is i) start the "All skills"
-# library section? True for a copy-kind item that's either first in the
-# filtered view or immediately follows a non-copy item.
-is_section_start() {
-    local vi="$1" i="$2"
-    [ "${SKILL_KIND[$i]}" = "copy" ] || return 1
-    [ "$vi" -eq 0 ] && return 0
-    [ "${SKILL_KIND[${visible_indices[$((vi - 1))]}]}" != "copy" ]
+# Group header checkbox state: 1 when the group has skills and all are
+# selected. Reads `selected` from the calling interactive_menu frame.
+group_all_selected() {
+    local g="$1" j any=0
+    for ((j = 0; j < count; j++)); do
+        [ "${SKILL_GROUP[$j]}" = "$g" ] && [ "${SKILL_KIND[$j]}" != "group" ] || continue
+        any=1
+        [ "${selected[$j]}" = "1" ] || return 1
+    done
+    [ "$any" -eq 1 ]
+}
+
+# Set every skill in group g to value v (0/1).
+set_group() {
+    local g="$1" v="$2" j
+    for ((j = 0; j < count; j++)); do
+        [ "${SKILL_GROUP[$j]}" = "$g" ] && [ "${SKILL_KIND[$j]}" != "group" ] && selected[j]="$v"
+    done
+    return 0
+}
+
+# Add/remove a config folder, then re-exec so discovery runs again.
+# Simpler than mutating every parallel array in place.
+restart_with_folders() {
+    write_config "$@"
+    cleanup
+    trap - EXIT
+    exec "$0"
 }
 
 # Print one redraw line (same backslash color-code interpretation as
@@ -353,9 +423,16 @@ interactive_menu() {
     local actual_count=()
     local actual_total=()
     local SEARCH_HAYSTACK=()
-    for i in $(seq 0 $((count - 1))); do
+    for ((i = 0; i < count; i++)); do
         local name="${SKILL_NAMES[$i]}"
         local kind="${SKILL_KIND[$i]}"
+        if [ "$kind" = "group" ]; then
+            # Headers have no install state; 0/0 keeps them out of the
+            # change indicators and summary counts.
+            actual_count+=("0"); actual_total+=("0"); selected+=("0")
+            SEARCH_HAYSTACK[i]=""
+            continue
+        fi
         local c
         c="$(install_count "$name")"
         actual_count+=("$c")
@@ -394,52 +471,58 @@ interactive_menu() {
     local show_desc=1
     local filter_mode=0
     local filter_query=""
+    local status_msg=""
     local visible_indices=()
     local cursor_pos=0
     recompute_filter
 
+    # Wrapped descriptions are cached per terminal width: wrapping forks a
+    # `fold` per skill, and doing that on every keypress made navigation lag.
+    local wrapped_desc=() desc_lines=() cached_width=-1
+
     while true; do
-        local term_rows term_cols
-        # No stderr redirect here: this tput needs an ioctl on an fd still
-        # attached to the terminal to read the real size, and piping its
-        # stderr to /dev/null breaks that detection (falls back to 80x24).
-        term_rows="$(tput lines)" || term_rows=24
-        term_cols="$(tput cols)" || term_cols=80
+        local term_rows=24 term_cols=80 size
+        # One fork for both dimensions; needs the tty, not stdout.
+        size="$(stty size </dev/tty 2>/dev/null)" && read -r term_rows term_cols <<< "$size"
         # Descriptions wrap to the full terminal width instead of being
         # truncated, so item height varies — a 6-char indent is reserved.
         local text_width=$((term_cols - 6))
         [ "$text_width" -lt 20 ] && text_width=20
 
+        local i
+        if [ "$text_width" -ne "$cached_width" ]; then
+            for ((i = 0; i < count; i++)); do
+                if [ "${SKILL_KIND[$i]}" = "group" ]; then
+                    wrapped_desc[i]=""; desc_lines[i]=0
+                    continue
+                fi
+                wrapped_desc[i]="$(printf '%s' "${SKILL_DESCS[$i]}" | fold -s -w "$text_width")"
+                local nl="${wrapped_desc[$i]//[!$'\n']/}"
+                desc_lines[i]=$((${#nl} + 1))
+            done
+            cached_width=$text_width
+        fi
+
         local visible_count=${#visible_indices[@]}
         local cursor=-1
         [ "$visible_count" -gt 0 ] && cursor="${visible_indices[$cursor_pos]}"
 
-        # Wrap each visible description once per redraw (width may have
-        # changed) and record how many terminal rows each item occupies:
-        # the name line, its wrapped description lines (if shown), and +1
-        # for the "All skills" heading right above the first library item.
-        local wrapped_desc=() item_height=()
-        local vi i
-        # macOS/BSD `seq 0 -1` reverses instead of emitting nothing like
-        # GNU seq, so this loop must never run when nothing is visible
-        # (e.g. a filter with zero matches).
-        if [ "$visible_count" -gt 0 ]; then
-            for vi in $(seq 0 $((visible_count - 1))); do
-                i="${visible_indices[$vi]}"
-                local w="" lines=0
-                if [ "$show_desc" = "1" ]; then
-                    w="$(printf '%s' "${SKILL_DESCS[$i]}" | fold -s -w "$text_width")"
-                    lines=$(($(printf '%s\n' "$w" | wc -l)))
-                fi
-                wrapped_desc[i]="$w"
-                local h=$((1 + lines))
-                is_section_start "$vi" "$i" && h=$((h + 1))
-                item_height[vi]=$h
-            done
-        fi
+        # Rows each visible item occupies: the name line, its wrapped
+        # description lines (if shown), and a spacer above group headers.
+        local item_height=()
+        local vi
+        for ((vi = 0; vi < visible_count; vi++)); do
+            i="${visible_indices[$vi]}"
+            local h=1
+            [ "$show_desc" = "1" ] && h=$((h + desc_lines[i]))
+            [ "${SKILL_KIND[$i]}" = "group" ] && [ "$vi" -gt 0 ] && h=$((h + 1))
+            item_height[vi]=$h
+        done
 
-        # Header (4 lines) + blank + summary (2 lines) + a little slack.
-        local available=$((term_rows - 8))
+        # Fixed rows: header (4) + more-above/below (2) + blank + summary
+        # (2) = 8, plus the trailing newline after the last line and one
+        # row of slack. Overflowing the terminal scrolls the header away.
+        local available=$((term_rows - 10))
         [ "$available" -lt 3 ] && available=3
 
         # Keep the cursor inside the window. Items have variable height,
@@ -487,10 +570,13 @@ interactive_menu() {
             line "${CYAN}/${RESET}${filter_query}${DIM}▌${RESET}"
         else
             line "${DIM}↑/↓ navigate  ·  space toggle  ·  t descriptions  ·  / filter  ·  enter apply  ·  q quit${RESET}"
-            if [ -n "$filter_query" ]; then
+            if [ -n "$status_msg" ]; then
+                line "  ${RED}${status_msg}${RESET}"
+                status_msg=""
+            elif [ -n "$filter_query" ]; then
                 line "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es) — esc to clear)${RESET}"
             else
-                line ""
+                line "${DIM}a add skills folder  ·  ctrl+d remove folder (on a folder header)${RESET}"
             fi
         fi
         line ""
@@ -504,10 +590,8 @@ interactive_menu() {
         fi
 
         if [ "$visible_count" -gt 0 ]; then
-            for vi in $(seq "$scroll_offset" "$window_end"); do
+            for ((vi = scroll_offset; vi <= window_end; vi++)); do
                 i="${visible_indices[$vi]}"
-                is_section_start "$vi" "$i" && line "${BOLD}All skills${RESET} ${DIM}(~/.agents/skills)${RESET}"
-
                 local name="${SKILL_NAMES[$i]}"
 
                 local prefix=""
@@ -515,6 +599,15 @@ interactive_menu() {
                     prefix="${CYAN}${ARROW}${RESET} "
                 else
                     prefix="  "
+                fi
+
+                if [ "${SKILL_KIND[$i]}" = "group" ]; then
+                    [ "$vi" -gt 0 ] && line ""
+                    if group_all_selected "$i"; then selected[i]=1; else selected[i]=0; fi
+                    local gbox="${DIM}${EMPTY}${RESET}"
+                    [ "${selected[$i]}" = "1" ] && gbox="${GREEN}${CHECK}${RESET}"
+                    line "${prefix}${gbox}  ${BOLD}${name}${RESET} ${DIM}(${SKILL_PATHS[$i]})${RESET}"
+                    continue
                 fi
 
                 local checkbox=""
@@ -558,7 +651,7 @@ interactive_menu() {
         # Count pending changes across ALL skills (not just the filtered
         # view) by comparing desired (selected) vs actual.
         local installs=0 repairs=0 uninstalls=0
-        for i in $(seq 0 $((count - 1))); do
+        for ((i = 0; i < count; i++)); do
             local c="${actual_count[$i]}"
             local t="${actual_total[$i]}"
             if [ "${selected[$i]}" = "1" ] && [ "$c" -lt "$t" ]; then
@@ -627,13 +720,51 @@ interactive_menu() {
             B|j)  # Down / j
                 [ "$cursor_pos" -lt $((visible_count - 1)) ] && cursor_pos=$((cursor_pos + 1))
                 ;;
-            ' ')  # Space — toggle
-                if [ "$cursor" -ge 0 ]; then
+            ' ')  # Space — toggle (a group header toggles all its skills)
+                if [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ]; then
+                    if group_all_selected "$cursor"; then set_group "$cursor" 0; else set_group "$cursor" 1; fi
+                elif [ "$cursor" -ge 0 ]; then
                     if [ "${selected[$cursor]}" = "1" ]; then
                         selected[cursor]="0"
                     else
                         selected[cursor]="1"
                     fi
+                fi
+                ;;
+            a)    # Add a skills folder to the config, then rescan
+                local newdir
+                tput cnorm 2>/dev/null || true
+                printf '\n'
+                # Esc cancels: bind it to wipe the line and submit a lone
+                # ESC char, which we treat as "nothing entered" below.
+                bind '"\e": "\C-a\C-k\C-v\C-[\n"' 2>/dev/null || true
+                IFS= read -rep "  skills folder to add (esc cancels): " newdir || newdir=""
+                bind -r '\e' 2>/dev/null || true
+                tput civis 2>/dev/null || true
+                newdir="${newdir%/}"
+                local expanded="${newdir/#\~/$HOME}"
+                if [ -z "$newdir" ] || [ "$newdir" = $'\x1b' ]; then
+                    :
+                elif [ ! -d "$expanded" ]; then
+                    status_msg="not a directory: $newdir"
+                elif ! compgen -G "$expanded/*/SKILL.md" >/dev/null && ! compgen -G "$expanded/personal/*/SKILL.md" >/dev/null; then
+                    status_msg="no skills (*/SKILL.md) found in $newdir"
+                else
+                    restart_with_folders "${CONFIG_FOLDERS[@]}" "$newdir"
+                fi
+                ;;
+            $'\x04')  # Ctrl+D — remove a config folder reference (not the folder)
+                if [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ] && is_config_group "$cursor"; then
+                    local yn
+                    printf '\n  Remove %s from the skills-folder list? [y/N] ' "${SKILL_PATHS[$cursor]}"
+                    IFS= read -rsn1 yn
+                    if [ "$yn" = "y" ] || [ "$yn" = "Y" ]; then
+                        local keep=() f
+                        for f in "${CONFIG_FOLDERS[@]}"; do [ "$f" = "${SKILL_PATHS[$cursor]}" ] || keep+=("$f"); done
+                        restart_with_folders "${keep[@]}"
+                    fi
+                elif [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ]; then
+                    status_msg="built-in folder, cannot be removed"
                 fi
                 ;;
             t)    # Toggle description visibility
@@ -734,6 +865,7 @@ apply_changes() {
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
         local name="${SKILL_NAMES[$i]}"
 
+        [ "${SKILL_KIND[$i]}" = "group" ] && continue
         if [ "${SKILL_KIND[$i]}" = "copy" ]; then
             if apply_copy_skill "$i"; then
                 changed=$((changed + 1))
@@ -814,15 +946,18 @@ usage() {
     echo "  --install <name>   Install a skill by name"
     echo "  --uninstall <name> Uninstall a skill by name"
     echo "  --list             List all skills and their install state"
+    echo ""
+    echo "Extra skill folders are listed in $CONFIG_FILE and managed from the UI (a / backspace)."
 }
 
 cmd_list() {
     for i in $(seq 0 $((${#SKILL_NAMES[@]} - 1))); do
-        if [ "$i" -eq "$REPO_SKILL_COUNT" ] && [ "$REPO_SKILL_COUNT" -lt "${#SKILL_NAMES[@]}" ]; then
-            echo ""
-            echo "All skills (~/.agents/skills):"
-        fi
         local name="${SKILL_NAMES[$i]}"
+        if [ "${SKILL_KIND[$i]}" = "group" ]; then
+            [ "$i" -gt 0 ] && echo ""
+            echo "$name (${SKILL_PATHS[$i]}):"
+            continue
+        fi
         local total
         total="$(target_count_for_kind "${SKILL_KIND[$i]}")"
         local c
