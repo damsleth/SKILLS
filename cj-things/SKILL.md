@@ -1,6 +1,6 @@
 ---
 name: cj-things
-description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or pull their Things tasks for planning. Feeds cj-weekly-review and pairs with cj-notes to turn captured notes into real tasks.
+description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or needs the Things-only detail (logbook, tags, queries) that the cross-surface view leaves out. For "what's open" across plans, Things and ADO, use cj-now instead. Pairs with cj-notes to turn captured notes into real tasks.
 ---
 
 # cj-things
@@ -181,12 +181,15 @@ Reads and `add`/`delete` don't need it.
 
 ## Integration with other skills
 
-This skill is the single front door to Things for the rest of the suite — they call the same
-`things` binary, ideally with `--json`.
+This skill is the single front door to Things **writes** for the rest of the suite, and to
+the Things-only reads `now` doesn't carry.
 
-- **cj-weekly-review** pulls the task picture in its Things3 step:
-  `things today`, `things upcoming`, `things deadlines`, `things logtoday`. Use `--json`
-  when it needs to merge Things tasks with calendar/ledger data programmatically.
+- **cj-now** is where the planning skills read from. `now` merges `things all --json` with
+  repo `.plans/` and ADO work items, so `cj-daily`, `cj-weekly-review` and `cj-notes` call
+  `now --agent`, not `things today`/`upcoming`/`deadlines`. Come here for the rest:
+  the logbook (`things logtoday` / `logbook` — `now` excludes completed work by design),
+  tag/query filters, `things areas --json` for a `--list-id`, and every mutation.
+  Deferred work is `now --upcoming`, not `things upcoming`.
 - **cj-notes** captures human-facing notes. When a note contains a concrete, actionable
   next step ("send X", "follow up with Y"), offer to push it to Things with
   `things add "<task>" --notes="<context / link back to the note>"` so the action doesn't
