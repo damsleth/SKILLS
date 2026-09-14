@@ -231,7 +231,7 @@ def adapter_plans(roots: list[Path]) -> list[dict]:
                 )
 
         for f in sorted(plans_dir.glob("*.md")):
-            if f.name in ("TODO.md", "DONE.md"):
+            if f.name in ("TODO.md", "DONE.md", "README.md"):
                 continue
             out.append(
                 item(
@@ -541,8 +541,8 @@ def render_agent(items: list[dict], sources: list[str]) -> str:
 
 
 def find_plans_dirs() -> list[Path]:
-    """Every .plans/ up to two levels under ~/code, plus the global one."""
-    roots = {HOME / "brain" / ".plans"}
+    """Every .plans/ up to two levels under ~/code, plus the global one (todo -g)."""
+    roots = {HOME / "brain" / "todos"}
     roots.update((HOME / "code").glob("*/.plans"))
     roots.update((HOME / "code").glob("*/*/.plans"))
     return sorted(

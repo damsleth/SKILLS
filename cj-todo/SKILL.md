@@ -37,6 +37,7 @@ todo done <n> [n...]  # complete #n (todo → DONE.md, plan file → .plans/done
 todo rm <n> [n...]    # delete #n (todo line, or plan file)
 todo log              # show completed todos & plans
 todo where            # print the .plans directory
+todo -g <cmd> ...     # same commands against the global store (~/brain/todos), not the repo
 todo install          # symlink the script as `todo` on PATH (~/.local/bin)
 ```
 
