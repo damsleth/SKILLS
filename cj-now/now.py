@@ -8,6 +8,7 @@ drift. Three adapters read their source on demand:
   plans   <repo>/.plans/TODO.md + <repo>/.plans/*.md   (filesystem, instant)
   things  things all --json                            (local sqlite, instant)
   ado     owa-ado wi --agent --mine                    (network, cached)
+  loops   ledger loops --json                          (local files, instant)
 
 Everything is keyed on the owa-piggy profile (une / nc / swon / brkh / dno),
 which is the one axis all three sources share.
@@ -73,7 +74,7 @@ def load_config() -> None:
     ADO_PROFILE = cfg.get("ado_profile") or ADO_PROFILE
 
 
-SOURCES = ("plans", "things", "ado")
+SOURCES = ("plans", "things", "ado", "loops")
 
 # Rows shown per profile before the tail is folded away. --full shows everything.
 DEFAULT_LIMIT = 10
@@ -309,6 +310,40 @@ def adapter_things() -> list[dict]:
                     starts=iso(t.get("start_date"), naive_is_local=True),
                 )
             )
+    return out
+
+
+def adapter_loops() -> list[dict]:
+    """Open loops from the cognitive ledger. Profile is the loop's scope
+    (work / personal / dev / meta): the ledger has no notion of owa-piggy
+    profiles and a loop is always yours, so the work-profile filter skips it."""
+    raw = run(["ledger", "loops", "--json"])
+    if not raw:
+        return []
+    try:
+        loops = json.loads(raw).get("items", [])
+    except (json.JSONDecodeError, AttributeError):
+        return []
+    out = []
+    for lp in loops:
+        path = Path(lp.get("path", ""))
+        fm = {}
+        try:
+            head = path.read_text().split("---", 2)[1]
+            fm = dict(re.findall(r"^(\w+):\s*(.+)$", head, re.M))
+        except (OSError, IndexError):
+            pass
+        out.append(
+            item(
+                id=f"loops:{path.stem.removeprefix('loop__')[:24]}",
+                source="loops",
+                title=lp.get("title", ""),
+                profile=fm.get("scope", "work"),
+                status=lp.get("status", "open"),
+                updated=iso(fm.get("updated")),
+                url=str(path) if path.name else None,
+            )
+        )
     return out
 
 
@@ -577,6 +612,8 @@ def main() -> int:
         items += adapter_things()
     if "ado" in sources:
         items += adapter_ado(no_cache=args.no_cache)
+    if "loops" in sources:
+        items += adapter_loops()
 
     if args.profile:
         items = [i for i in items if i["profile"] == args.profile.lower()]
@@ -585,7 +622,8 @@ def main() -> int:
         # work profiles made `now --grep brygga` answer "ingenting åpent" while
         # the row sat in dno, and every documented search had to carry
         # --full --all to work at all.
-        items = [i for i in items if not WORK_PROFILES or i["profile"] in WORK_PROFILES]
+        items = [i for i in items if not WORK_PROFILES or i["profile"] in WORK_PROFILES
+                 or i["source"] == "loops"]
 
     if args.grep:
         needle = args.grep.lower()
