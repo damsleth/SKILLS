@@ -1,11 +1,11 @@
 ---
 name: cj-now
-description: One canonical, read-only view of everything open across repo .plans/, Things 3 and Azure DevOps work items, keyed on owa-piggy profile. Use when the user asks "hva er aktuelt nå", "hva jobber jeg med", "vis alle oppgaver", "status på tvers", "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only: it never writes to any source.
+description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "hva er aktuelt nå", "hva jobber jeg med", "vis alle oppgaver", "status på tvers", "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only: it never writes to any source.
 ---
 
 # cj-now
 
-`now` projects three task surfaces into one list. It is a projection, not a
+`now` projects four task surfaces into one list. It is a projection, not a
 store. Nothing is written and nothing is synced, so nothing can drift.
 
 ```
@@ -28,6 +28,7 @@ now --no-cache          force a fresh ADO fetch
 | `plans` | `<repo>/.plans/TODO.md` + `<repo>/.plans/*.md` | filesystem | repo work, 1:1 with a git repo; `ado:` frontmatter links a plan to its work item |
 | `things` | `things all --json` | local sqlite | personal tasks, human-owned |
 | `ado` | `owa-ado wi --agent --mine` | network, cached 15 min | team work items, **not yours** |
+| `loops` | `ledger loops --json` | local files | open loops from the cognitive ledger; profile is the loop's `scope` (work / personal / dev / meta) and the work-profile filter never hides them |
 
 Each source stays authoritative for its own domain. `now` never reconciles them
 and never picks a winner.
@@ -126,7 +127,7 @@ and close the stale side.
 - Use `--agent` and read `data[]`. Every record has `id`, `source`, `title`,
   `profile`, `status`, `updated`, `deadline`, `url`, plus source-specific extras.
 - Ids are stable and source-prefixed: `plans:<repo>/<slug>`, `things:<uuid8>`,
-  `ado:<id>`.
+  `ado:<id>`, `loops:<slug>`.
 - **Check `_owa.warnings` before trusting a gap.** A source that is down is
   reported there, never silently dropped. An expired profile token yields
   `owa-piggy reseed --profile <name>`, which only the user can run.
@@ -136,7 +137,7 @@ and close the stale side.
 - After finishing work, close it in the source that owns it, not here.
 - **Writes and the logbook live in the source skill.** Creating, completing or
   editing a Things task, and any completed-work view, is `cj-things`; a work
-  item is `cj-owa-ado`; a plan or todo line is `cj-todo`.
+  item is `cj-owa-ado`; a plan or todo line is `cj-todo`; a loop is `cj-notes`.
 
 ## Deliberately not built
 
