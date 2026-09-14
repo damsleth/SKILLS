@@ -57,6 +57,7 @@ else
   ROOT="$(repo_root)"
   PLANS_DIR="$ROOT/.plans"
 fi
+PLANS_LABEL="$(basename "$PLANS_DIR")"   # ".plans" or the global dir's name, for display
 TODO_FILE="$PLANS_DIR/TODO.md"
 DONE_FILE="$PLANS_DIR/DONE.md"
 DONE_DIR="$PLANS_DIR/done"
@@ -116,13 +117,13 @@ enumerate() {
       printf 'todo\t%s\t%s\n' "$ln" "$text"
     done || true   # grep exits 1 when there are no todos; don't abort under set -e
   fi
-  # Plans: top-level *.md files in .plans/ (not TODO.md/DONE.md, not subdirs).
+  # Plans: top-level *.md files in .plans/ (not TODO.md/DONE.md/README.md, not subdirs).
   local f base
   for f in "$PLANS_DIR"/*.md; do
     [ -e "$f" ] || continue
     base="$(basename "$f")"
-    case "$base" in TODO.md|DONE.md) continue ;; esac
-    printf 'plan\t%s\t%s\n' ".plans/$base" "$(plan_title "$f")"
+    case "$base" in TODO.md|DONE.md|README.md) continue ;; esac
+    printf 'plan\t%s\t%s\n' "$PLANS_LABEL/$base" "$(plan_title "$f")"
   done
 }
 
@@ -158,14 +159,14 @@ cmd_plan() {
   [ -n "$slug" ] || die "could not derive a filename from \"$name\""
   local file="$PLANS_DIR/$slug.md"
   if [ -f "$file" ]; then
-    echo "${YELLOW}plan already exists:${RESET} .plans/$slug.md"
+    echo "${YELLOW}plan already exists:${RESET} $PLANS_LABEL/$slug.md"
   else
     {
       printf '# %s\n\n' "$name"
       printf '_Created %s_\n\n' "$(today)"
       printf '## Goal\n\n\n## Steps\n\n- [ ] \n\n## Notes\n\n'
     } > "$file"
-    echo "${GREEN}+${RESET} plan: $name ${DIM}(.plans/$slug.md)${RESET}"
+    echo "${GREEN}+${RESET} plan: $name ${DIM}($PLANS_LABEL/$slug.md)${RESET}"
   fi
   echo "$file"
 }
