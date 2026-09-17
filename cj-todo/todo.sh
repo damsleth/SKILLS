@@ -55,7 +55,8 @@ if [ "$GLOBAL" -eq 1 ]; then
   ROOT="$(dirname "$PLANS_DIR")"     # only for relative-path display
 else
   ROOT="$(repo_root)"
-  PLANS_DIR="$ROOT/.plans"
+  # ponytail: honour a repo's existing todos/ dir, else .plans/
+  if [ -d "$ROOT/todos" ]; then PLANS_DIR="$ROOT/todos"; else PLANS_DIR="$ROOT/.plans"; fi
 fi
 PLANS_LABEL="$(basename "$PLANS_DIR")"   # ".plans" or the global dir's name, for display
 TODO_FILE="$PLANS_DIR/TODO.md"
