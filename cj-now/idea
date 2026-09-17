@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# idea: surface dev-ideas the way `now` surfaces work.
+#   idea            list ideas (ideas/*/README.md frontmatter, retired hidden) + open todos
+#   idea -a         include retired
+#   idea <text>     capture: `todo add "<text>"` in the dev-ideas repo
+# ponytail: frontmatter read with sed, no yaml parser; fields are single-line by convention.
+set -uo pipefail
+IDEAS="${DEV_IDEAS:-$HOME/code/dev-ideas}"
+[ -d "$IDEAS/ideas" ] || { echo "no dev-ideas at $IDEAS (set DEV_IDEAS)" >&2; exit 1; }
+if [ -t 1 ]; then B=$'\033[1m'; DIM=$'\033[2m'; YE=$'\033[33m'; R=$'\033[0m'; else B=; DIM=; YE=; R=; fi
+
+all=0
+case "${1:-}" in -a|--all) all=1; shift ;; -h|--help) sed -n '2,6p' "$0"; exit 0 ;; esac
+if [ $# -gt 0 ]; then exec env -C "$IDEAS" todo add "$*"; fi
+
+fm() { sed -n '/^---$/,/^---$/p' "$1" | sed -n "s/^$2: *//p" | head -1; }
+for d in "$IDEAS"/ideas/*/; do
+  rd="$d/README.md"; [ -f "$rd" ] || continue
+  st="$(fm "$rd" status)"
+  [ $all -eq 0 ] && [ "$st" = retired ] && continue
+  printf '%s%-3s%s %s%-28s%s %s%-7s%s %s\n' "$DIM" "$(basename "$d" | cut -c1-2)" "$R" \
+    "$B" "$(fm "$rd" title | cut -c1-28)" "$R" "$YE" "$st" "$R" "$(fm "$rd" tagline | cut -c1-60)"
+done
+echo
+env -C "$IDEAS" todo
