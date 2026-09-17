@@ -1,6 +1,6 @@
 ---
 name: cj-now
-description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "hva er aktuelt nå", "hva jobber jeg med", "vis alle oppgaver", "status på tvers", "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only: it never writes to any source.
+description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "hva er aktuelt nå", "hva jobber jeg med", "vis alle oppgaver", "status på tvers", "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only — it never writes to any source.
 ---
 
 # cj-now
@@ -20,6 +20,13 @@ now --all               include non-work profiles (brkh, dno, fdep)
 now --agent             JSON, owa-suite envelope
 now --no-cache          force a fresh ADO fetch
 ```
+
+## Sibling: `idea`
+
+`idea` does for `~/code/dev-ideas` what `now` does for work: no args lists every
+idea (title, status, tagline from `ideas/*/README.md`, retired hidden, `-a` to
+show) plus the repo's open todos; `idea <text>` captures a new one with
+`todo add` in that repo. `brain ideas` calls it. `DEV_IDEAS` overrides the path.
 
 ## Sources
 
