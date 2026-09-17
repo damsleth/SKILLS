@@ -622,8 +622,10 @@ def main() -> int:
         # work profiles made `now --grep brygga` answer "ingenting åpent" while
         # the row sat in dno, and every documented search had to carry
         # --full --all to work at all.
+        # Global todos (~/brain/todos, `todo -g`) are cross-cutting like loops:
+        # the work-profile filter never hides them either.
         items = [i for i in items if not WORK_PROFILES or i["profile"] in WORK_PROFILES
-                 or i["source"] == "loops"]
+                 or i["source"] == "loops" or i.get("repo") == "global"]
 
     if args.grep:
         needle = args.grep.lower()
