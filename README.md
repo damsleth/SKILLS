@@ -8,6 +8,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 |-------|-------------|
 | **cj-automate** | Audit a workflow and propose automations ordered by leverage — remove humans from transport steps first, collapse waits second, optimize speed last |
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
+| **cj-code-review** | Confidence-filtered code review of a PR, branch, or local diff — several independent review passes, each finding scored and dropped below 80. Model-agnostic. |
 | **cj-now** | One read-only view of everything open across repo `.plans/`, Things 3 and Azure DevOps, keyed on the owa-piggy profile. Bundled `now` CLI projects the three sources on demand, so there is nothing to sync and nothing to drift. |
 | **cj-things** | Manage Things 3 tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the Things-only reads (logbook, tags, queries) that cj-now leaves out. Pairs with cj-notes. ([things3-cli](https://github.com/ossianhempel/things3-cli)) |
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
