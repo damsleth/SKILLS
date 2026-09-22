@@ -293,7 +293,7 @@ def adapter_things() -> list[dict]:
             word = area.split()[-1].upper() if area.split() else ""
             out.append(
                 item(
-                    id=f"things:{uid[:8]}",
+                    id=f"things:{uid}",
                     source="things",
                     title=t.get("title", ""),
                     profile=AREA_PROFILES.get(word, REPO_FALLBACK),
@@ -683,10 +683,14 @@ def main() -> int:
             # target on exactly the long plan rows that needed it most.
             rec["title"] = f"{rec['dupe_of']}  {rec['title']}"
 
-    shown_dupes = sum(1 for i in items if i.get("dupe_of"))
-    if shown_dupes:
+    dupes = [i for i in items if i.get("dupe_of")]
+    if dupes:
+        # The copy can live in Things or in .plans/; naming only Things sent you
+        # hunting for Things rows that were not there.
+        where = "/".join(sorted({i["source"] for i in dupes}))
         WARNINGS.append(
-            f"{shown_dupes} ⧉ dublett(er): samme sak i Things og ADO, lukk Things-kopien"
+            f"{len(dupes)} ⧉ dublett(er) i {where}: samme sak i ADO, "
+            f"lukk kopien (now --dupes)"
         )
 
     if args.agent:
