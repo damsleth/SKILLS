@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -511,11 +512,14 @@ def render_table(items: list[dict], color: bool, limit: int | None, verbose: boo
                 # width. A bare "active" is ambiguous without it, so ADO keeps
                 # its source name on the status.
                 status = {"ado": f"ado:{rec['status']}", "loops": "loop"}.get(rec["source"], rec["status"])
-                when = rec["deadline"][:10] if rec.get("deadline") else ""
-                cells.append(("", status, mark + shorten(rec["title"], 90), when))
+                cells.append(("", status, mark + rec["title"], ""))
 
         w_id = max(len(c[0]) for c in cells)
         w_st = max(len(c[1]) for c in cells)
+        if not verbose:
+            # Fill the terminal instead of a fixed clip; 80 when piped.
+            room = max(20, shutil.get_terminal_size().columns - w_st - 4)
+            cells = [(c, st, shorten(t, room), w) for c, st, t, w in cells]
         for cid, status, title, when in cells:
             head = f"{cid:<{w_id}}  " if verbose else ""
             lines.append(f"  {head}{d}{status:<{w_st}}{r}  {title}  {d}{when}{r}".rstrip())
