@@ -14,6 +14,7 @@ Everything is keyed on the owa-piggy profile (une / nc / swon / brkh / dno),
 which is the one axis all three sources share.
 
   now                      open work, grouped by profile
+  now -v                   same, with ids and age
   now --profile une        one profile
   now --source plans       one source
   now --all                include non-work areas (brkh, dno, fdep)
@@ -482,7 +483,7 @@ def shorten(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
-def render_table(items: list[dict], color: bool, limit: int | None) -> str:
+def render_table(items: list[dict], color: bool, limit: int | None, verbose: bool = False) -> str:
     b, d, r = (BOLD, DIM, RESET) if color else ("", "", "")
     lines = []
 
@@ -500,15 +501,24 @@ def render_table(items: list[dict], color: bool, limit: int | None) -> str:
 
         cells = []
         for rec in shown:
-            age = age_days(rec.get("updated"))
-            when = rec["deadline"][:10] if rec.get("deadline") else (f"{age}d" if age is not None else "")
             mark = "⧉ " if rec.get("dupe_of") else ""
-            cells.append((shorten(rec["id"], 34), rec["status"], mark + shorten(rec["title"], 62), when))
+            if verbose:
+                age = age_days(rec.get("updated"))
+                when = rec["deadline"][:10] if rec.get("deadline") else (f"{age}d" if age is not None else "")
+                cells.append((shorten(rec["id"], 34), rec["status"], mark + shorten(rec["title"], 62), when))
+            else:
+                # Bare `now` is for reading, not addressing: the id only ate
+                # width. A bare "active" is ambiguous without it, so ADO keeps
+                # its source name on the status.
+                status = {"ado": f"ado:{rec['status']}", "loops": "loop"}.get(rec["source"], rec["status"])
+                when = rec["deadline"][:10] if rec.get("deadline") else ""
+                cells.append(("", status, mark + shorten(rec["title"], 90), when))
 
         w_id = max(len(c[0]) for c in cells)
         w_st = max(len(c[1]) for c in cells)
         for cid, status, title, when in cells:
-            lines.append(f"  {cid:<{w_id}}  {d}{status:<{w_st}}{r}  {title}  {d}{when}{r}")
+            head = f"{cid:<{w_id}}  " if verbose else ""
+            lines.append(f"  {head}{d}{status:<{w_st}}{r}  {title}  {d}{when}{r}".rstrip())
         if len(rows) > len(shown):
             lines.append(f"  {d}… +{len(rows) - len(shown)} flere (--full){r}")
 
@@ -592,6 +602,7 @@ def main() -> int:
     ap.add_argument("--all", "-a", action="store_true", help="include non-work profiles")
     ap.add_argument("--agent", action="store_true", help="JSON output for machines")
     ap.add_argument("--no-cache", action="store_true", help="force a fresh ADO fetch")
+    ap.add_argument("--verbose", "-v", action="store_true", help="show ids and age")
     ap.add_argument("--full", "-f", action="store_true", help="no per-profile row cap")
     ap.add_argument("--grep", "-g", help="substring filter on title or id")
     ap.add_argument("--dupes", action="store_true", help="only rows that duplicate an ADO work item")
@@ -698,7 +709,8 @@ def main() -> int:
     else:
         limit = None if (args.full or args.profile or args.grep
                          or args.dupes or args.upcoming) else DEFAULT_LIMIT
-        sys.stdout.write(render_table(items, color=sys.stdout.isatty(), limit=limit))
+        sys.stdout.write(render_table(items, color=sys.stdout.isatty(), limit=limit,
+                                      verbose=args.verbose))
     return 0
 
 
