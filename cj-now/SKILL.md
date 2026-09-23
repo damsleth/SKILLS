@@ -82,9 +82,9 @@ organisation is read off the work item urls that `owa-ado` already returns.
 
 Sort order is how a human triages. A deadline inside 14 days jumps the queue;
 everything else falls back to most recently touched. `2026-09-11` in the last
-column is a deadline. Bare `now` shows only status, title and deadline, with
+column is a deadline. Bare `now` shows only status and title (clipped to the terminal width), with
 `ado:` on ADO statuses and `loop` for ledger loops; `-v` adds the id column and
-fills an empty deadline with age (`17d` is how long since anything moved).
+the deadline, or age when there is none (`17d` is how long since anything moved).
 
 Things reports Today and Upcoming only as group titles: the items inside still
 say start=Anytime or Someday. Both are read from the group, so `status` says
