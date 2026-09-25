@@ -1,6 +1,6 @@
 ---
 name: cj-automate
-description: Audit a workflow or process and propose automations, ordered by leverage — remove humans from transport steps first, collapse waits second, optimize speed last. Use when the user describes something repetitive, asks "can this be automated?", complains about a manual process, or wants to find automation candidates across their setup.
+description: Audit a workflow or process and propose automations, ordered by leverage — remove humans from transport steps first, collapse waits second, optimize speed last. Use when the user describes something repetitive, asks "can this be automated?", complains about a manual process, wants to find automation candidates across their setup, or wants their shell history and git habits mined for repetition.
 ---
 
 # Automation auditor
@@ -35,6 +35,14 @@ Where you can observe the workflow directly instead of asking — shell history,
 scripts directory, an inbox, cron/launchd entries, the Things database — do that first and bring
 a draft trace to the conversation. A trace you derived and they corrected beats a trace they had
 to write from memory.
+
+For a dev workflow, the observable trace lives in: `~/.zsh_history` (repeated multi-step
+sequences, retries after typos), `git log` across `~/code/*` (WIP commits, amend-and-force-push,
+revert patterns), dotfiles (aliases and functions that already exist or are dead), per-repo
+`Makefile` / `justfile` / `package.json` scripts / `AGENTS.md`, and what is already on PATH. State
+the sample (e.g. "last 30 days of history, last 50 commits"). History holds secrets: summarize
+patterns and redact any token or credential you see; recommend deleting that line from
+`~/.zsh_history` and moving the value into a secret manager.
 
 ## Rule one: classify what the human is actually doing
 
@@ -113,6 +121,10 @@ Risk: [only if there is one]
 
 Order findings by leverage, not by step number.
 
+When the fix is code (an alias, a zsh function, a `just` recipe), put it in the finding
+copy-pasteable and `zsh -n`-checked. The smallest form wins: alias, then function, then script,
+then a target in the repo's existing `Makefile` / `justfile`, then a new tool.
+
 ## Anti-patterns
 
 - **Proposing a tool before tracing the workflow.** The tool is the last decision, not the first.
@@ -137,6 +149,8 @@ covered before proposing it:
 - `teaminal` — Teams TUI.
 - launchd is the established scheduler here (owa-piggy already uses it), not cron.
 - Existing `cj-*` skills cover daily notes, meetings, weekly review, blogging, and voice.
+- Shell is zsh on macOS. Record a rejected proposal in the ledger via `/cj-notes`, and check the
+  ledger before re-pitching one; re-pitch only with new evidence.
 
 Prefer wiring these together over building anything new. A proposal that is three existing CLIs
 in a pipe is a better finding than one that needs a new repo.
