@@ -39,6 +39,28 @@ test_todo_archive_collision() {
     pass "todo archives colliding plan slugs without overwrite"
 }
 
+test_todo_list_all() {
+    local t="$TMP_ROOT/todo-all" out
+    mkdir -p "$t/a/.plans" "$t/x/b/.plans" "$t/x/y/c/.plans" "$t/d/todos" "$t/d/.plans" "$t/e/node_modules/z/.plans"
+    echo '- [ ] a one' > "$t/a/.plans/TODO.md"
+    echo '# Plan B' > "$t/x/b/.plans/big.md"
+    echo '- [ ] deep c' > "$t/x/y/c/.plans/TODO.md"
+    echo '- [ ] from todos' > "$t/d/todos/TODO.md"
+    echo '- [ ] shadowed' > "$t/d/.plans/TODO.md"
+    echo '- [ ] in node_modules' > "$t/e/node_modules/z/.plans/TODO.md"
+
+    out="$(cd "$t" && "$TODO" --all)"
+    for s in "a one" "Plan B" "deep c" "from todos"; do
+        grep -q "$s" <<<"$out" || fail "--all missing '$s'"
+    done
+    ! grep -qE "shadowed|node_modules" <<<"$out" || fail "--all listed a shadowed or node_modules store"
+
+    out="$("$TODO" --path "$t" --depth 2)"
+    grep -q "Plan B" <<<"$out" || fail "--depth 2 missing depth-2 repo"
+    ! grep -q "deep c" <<<"$out" || fail "--depth 2 listed a depth-3 repo"
+    pass "todo --all walks nested repos, honours --path/--depth"
+}
+
 test_installer_blocked_target_fails() {
     local home="$TMP_ROOT/blocked-home"
     mkdir -p "$home/.claude/skills/cj-todo" "$home/.codex/skills/cj-todo" "$home/.copilot/skills/cj-todo"
@@ -62,5 +84,6 @@ test_installer_list_has_no_ansi() {
 }
 
 test_todo_archive_collision
+test_todo_list_all
 test_installer_blocked_target_fails
 test_installer_list_has_no_ansi
