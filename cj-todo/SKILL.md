@@ -31,6 +31,9 @@ script by path (`./todo.sh` inside this skill folder, or wherever it's installed
 
 ```bash
 todo                  # list open todos & plans (default)
+todo --all [--path <dir>] [--depth <n>]
+                      # every repo's list under <dir> (default $PWD), <n> levels deep;
+                      # grouped per repo, numbers are per repo (cd there to done/rm)
 todo add "<text>"     # add a todo
 todo plan "<name>"    # create a plan file (.plans/<slug>.md); prints the path
 todo done <n> [n...]  # complete #n (todo → DONE.md, plan file → .plans/done/)

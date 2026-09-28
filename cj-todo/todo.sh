@@ -172,7 +172,8 @@ cmd_plan() {
   echo "$file"
 }
 
-cmd_list() {
+# Format enumerate's TSV records (stdin) as the numbered list.
+format_items() {
   local n=0 kind target display
   while IFS=$'\t' read -r kind target display; do
     n=$((n + 1))
@@ -182,10 +183,50 @@ cmd_list() {
     else
       printf '  %s%2d.%s [ ] %s\n' "$BOLD" "$n" "$RESET" "$display"
     fi
-  done < <(enumerate)
-  if [ "$n" -eq 0 ]; then
-    echo "${DIM}no open todos or plans in ${PLANS_DIR/#$HOME/\~}${RESET}"
+  done
+}
+
+# `todo [--all] [--path <dir>] [--depth <n>]`. --path/--depth imply --all:
+# walk <dir> (default $PWD) for .plans/ or todos/ stores, one group per repo.
+# Numbers are per repo, so `cd` there and `todo done <n>` as usual.
+cmd_list() {
+  local all=0 base="$PWD" depth="" out
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -a|--all) all=1 ;;
+      --path)   [ -n "${2:-}" ] || die "--path needs a directory"; base="$2"; all=1; shift ;;
+      --depth)  [[ "${2:-}" =~ ^[0-9]+$ ]] || die "--depth needs a number"; depth="$2"; all=1; shift ;;
+      *)        die "unknown list option '$1' (try: todo help)" ;;
+    esac
+    shift
+  done
+
+  if [ "$all" -eq 0 ]; then
+    out="$(enumerate | format_items)"
+    if [ -n "$out" ]; then printf '%s\n' "$out"
+    else echo "${DIM}no open todos or plans in ${PLANS_DIR/#$HOME/\~}${RESET}"; fi
+    return
   fi
+
+  [ -d "$base" ] || die "no such directory: $base"
+  base="$(cd "$base" && pwd)"
+  # depth counts repo levels below base; the store sits one level deeper.
+  local -a maxd=(); [ -n "$depth" ] && maxd=(-maxdepth "$((depth + 1))")
+  local d shown=0
+  # dynamic scope: enumerate reads these
+  local PLANS_DIR TODO_FILE PLANS_LABEL
+  while IFS= read -r d; do
+    # mirror single-repo resolution: a sibling todos/ wins over .plans/
+    [ "$(basename "$d")" = .plans ] && [ -d "$(dirname "$d")/todos" ] && continue
+    PLANS_DIR="$d"; TODO_FILE="$d/TODO.md"; PLANS_LABEL="$(basename "$d")"
+    out="$(enumerate | format_items)"
+    [ -n "$out" ] || continue
+    [ "$shown" -eq 1 ] && echo
+    printf '%s%s%s\n%s\n' "$BOLD" "$(dirname "$d" | sed "s|^$HOME|~|")" "$RESET" "$out"
+    shown=1
+  done < <(find "$base" ${maxd[@]+"${maxd[@]}"} \( -name node_modules -o -name .git \) -prune \
+             -o -type d \( -name .plans -o -name todos \) -print -prune 2>/dev/null | sort)
+  [ "$shown" -eq 1 ] || echo "${DIM}no open todos or plans under ${base/#$HOME/\~}${RESET}"
 }
 
 # Snapshot the enumerated list, then resolve every requested number against
@@ -288,6 +329,9 @@ ${BOLD}todo${RESET} — repo-scoped todos & plans (stored in ${DIM}<repo>/.plans
 
 ${BOLD}usage${RESET}
   todo                       list open todos & plans (default)
+  todo --all [--path <dir>] [--depth <n>]
+                             list every repo's todos under <dir> (default \$PWD),
+                             at most <n> levels deep; numbers are per repo
   todo add "<text>"          add a todo
   todo plan "<name>"         create a plan file (.plans/<slug>.md)
   todo done <n>              complete item #n (todo → DONE.md, plan → .plans/done/)
@@ -318,5 +362,6 @@ case "$cmd" in
   where|dir)      cmd_where "$@" ;;
   install)        cmd_install "$@" ;;
   help|-h|--help) cmd_help ;;
-  *)              die "unknown command '$cmd' (try: todo help)" ;;
+  -*)             cmd_list "$cmd" "$@" ;;   # `todo --all …` = `todo list --all …`
+  *)           die "unknown command '$cmd' (try: todo help)" ;;
 esac
