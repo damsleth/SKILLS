@@ -14,7 +14,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
 | **cj-video-vision** | Watch and analyze videos (local files + YouTube) via the claude-video-vision MCP server — frame extraction, scene/silence/motion analysis, transcription. ([claude-video-vision](https://github.com/damsleth/claude-video-vision)) |
 | **cj-ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline. ([ux-loop](https://github.com/damsleth/ux-loop)) |
-| **cj-voice-dna** | Load and apply your writing voice profile before drafting public-facing text |
+| **cj-voice-dna** | Pick the register (språkdrakt) and apply your voice profile before drafting: blog, work notes, messages, formal, technical docs (STE) |
 
 ## Install
 
