@@ -1,214 +1,192 @@
 ---
 name: cj-voice-dna
-description: Load and apply the user's writing voice profile when drafting any text meant for public or semi-public audiences — blog posts, READMEs, LinkedIn updates, release notes, external-facing docs. Also use when calibrating or updating the voice profile. Invoke before writing, not after.
+description: Pick the register (språkdrakt) and apply the user's voice profile before drafting prose others will read. Branches - blog posts and LinkedIn, work notes and incident write-ups, messages and PR descriptions, formal proposals, technical documentation and procedures (incl. ASD-STE100 Simplified Technical English). Also for calibrating or updating the voice profile.
 ---
 
 # Voice DNA
 
-Load and apply a persistent author voice profile so all writing sounds like the same person.
+Every text is written along three axes. Settle all three before the first sentence:
 
-The skill has two layers:
+| Axis | Question | Source |
+|---|---|---|
+| **voice** | who is writing | the profile's `voice` block: persona, humor, vocabulary, avoid list |
+| **register** (språkdrakt) | what kind of text this is | built-in registers below, extended by the profile's `registers` |
+| **language** | which language | the context; language rules below plus the profile's `lang` |
 
-1. **Baseline rules** (below): hardcoded anti-slop rules. Always apply, profile or not.
-2. **Voice profile**: the user's personal calibration, loaded from disk. Layers on top of the baseline.
+The register decides how much voice gets through. A blog post carries the full voice. A procedure carries none of it.
 
-If they ever conflict, baseline wins. The baseline exists because calibrated profiles alone still let AI patterns leak through.
+Precedence when rules collide: global rules, then register, then language, then voice.
 
-## Baseline rules (always apply)
+## Steps
 
-### Writing rules
+1. **Load the profile** (see *Profile resolution*). Done when the profile is in context or calibration has started.
+2. **Pick the register.** First match wins:
+   1. The user names it ("skriv i STE", "som blogg", "som arbeidsnotat").
+   2. The destination decides: a blog post or LinkedIn is `blog`; a note in a notes vault, a meeting summary, a running work note or an incident write-up is `work_note`; a chat, mail, Teams post or PR description is `message`; a proposal, recommendation or application upward is `formal`; a README, runbook, procedure, install guide or API doc is `tech_doc`.
+   3. Otherwise pick the closest one and name it in one line to the user.
 
-- Write like a sharp human, not a language model.
-- Use contractions naturally (don't, can't, won't).
-- Short paragraphs. 1-3 sentences max.
-- Get to the point. No throat-clearing, no preamble.
-- If making a claim, be specific. Use numbers, names, concrete details.
-- Vary sentence length. Mix short punchy lines with longer ones.
-- Use natural transitions, not mechanical ones ("Furthermore," "Additionally").
-- When uncertain, say so plainly ("I think," "probably," "kinda"). Hedging is human.
-- Never pad output to seem more thorough. Shorter and accurate beats longer and fluffy.
-- Use physical verbs for abstract processes: "sanded down" not "improved," "bolted on" not "added," "stripped back" not "simplified."
-- Humor comes from specificity, not from jokes. Be unexpectedly precise.
-- Parenthetical asides are good. Use them for editorial commentary, honest reactions, quick tangents, and deflating your own seriousness (like this).
+   Done when exactly one register is chosen.
+3. **Pick the language** from the context. Load `lang.<code>` from the profile. Done when the language rules and the language's avoid list are in context.
+4. **For `tech_doc`**, read [`ste.md`](ste.md) before writing. It holds the ASD-STE100 rules (English) and the klarspråk fallback (Norwegian).
+5. **Draft**, applying the global rules, the register, the language, and the voice at the register's dial.
+6. **Run the self-check.** Done when every check passes on every paragraph.
 
-### Formatting rules
+## Global rules (every register)
 
-- Short paragraphs (1-2 sentences default, 3 max).
+- Get to the point. The first sentence carries information.
+- Make claims specific: numbers, names, dates, identifiers.
+- Say plainly what you don't know, and where the uncertainty comes from.
+- Write the shortest text that is accurate. Length follows content.
+- Short paragraphs: 3 sentences at most.
 - Numbers as digits.
-- Contractions always.
-- NO em dashes ever. Use commas, periods, colons, semicolons, or parentheses.
+- Punctuate with commas, periods, colons, semicolons and parentheses. Em dashes are banned.
 - Bold sparingly, 1-2 key moments per section.
-- Code blocks for specific prompts, commands, or tool outputs.
+- Code blocks for commands, prompts and tool output, with a language hint.
+- State the positive claim directly. **Fatal:** any sentence that negates one framing to assert a corrected one ("This isn't X. This is Y.", "Not X. Y.", "Forget X.", "Less X, more Y.", "ikke X, men Y"). One of these fails the output.
+- The banned phrases below apply everywhere.
 
-### Banned phrases (never use these, ever)
+## Voice dial
 
-**Dead AI language**
+Each register sets `voice` to one of three levels:
 
-- "In today's [anything]..."
-- "It's important to note that..." / "It's worth noting..."
-- "Delve" / "Dive into" / "Unpack"
-- "Harness" / "Leverage" / "Utilize"
-- "Landscape" / "Realm" / "Robust"
-- "Game-changer" / "Cutting-edge"
-- "Straightforward"
-- "I'd be happy to help"
-- "In order to"
+- **`full`**: persona, humor, rhythm, vocabulary and examples all apply.
+- **`muted`**: the persona's word choice and the avoid lists apply. Humor, punchlines, dramatic framing and emotional words ("redd for", "worried", "scary") drop out. The writer sounds like themselves on a normal workday.
+- **`off`**: only the global rules, the register rules and the avoid lists. Nobody in particular is writing.
 
-**Dead transitions**
+## Built-in registers
 
-- "Furthermore" / "Additionally" / "Moreover"
-- "Moving forward" / "At the end of the day"
-- "To put this in perspective..."
-- "What makes this particularly interesting is..."
-- "The implications here are..."
-- "In other words..."
-- "It goes without saying..."
+The profile's `registers.<name>` merges over these. The profile can add new registers too.
 
-**Engagement bait**
+**`blog`**, voice `full`
+- Lead with the thesis. The title is the claim.
+- Vary sentence length. Mix short lines with longer ones.
+- Use physical verbs for abstract processes ("sanded down", "bolted on", "stripped back"). English only; other languages use their own idioms.
+- Humor comes from specificity. Be unexpectedly precise.
+- Parenthetical asides for editorial commentary, honest reactions and deflating your own seriousness.
+- Close on a distilled line.
 
-- "Let that sink in" / "Read that again" / "Full stop"
-- "This changes everything"
-- "Are you paying attention?"
-- "You're not ready for this"
+**`work_note`**, voice `muted`
+- Lead with the result or the state: what happened, numbers, who.
+- Each sentence carries a fact, a decision, a reason or an open question.
+- Headings name the topic in plain words.
+- Cite the source per claim (note link, ticket, date).
+- State unknowns as facts: "ukjent", "ikke bekreftet", "no answer yet", with who should know.
+- End on the last fact or the next step.
 
-**AI cringe**
+**`message`**, voice `muted`
+- Open with the ask or the news.
+- One ask per message where possible, with owner and deadline.
+- PR descriptions and first-contact messages end on the last fact.
 
-- "Supercharge" / "Unlock" / "Future-proof"
-- "10x your productivity"
-- "The AI revolution"
-- "In the age of AI"
+**`formal`**, voice `muted`
+- Principle first, then a plain chain of reasoning, then a flat conclusion.
+- Formality means precision. Keep the vocabulary plain.
 
-**Generic insider claims**
+**`tech_doc`**, voice `off`
+- Follow [`ste.md`](ste.md).
 
-- "Here's the part nobody's talking about"
-- "What nobody tells you"
-- Anything with "nobody" or "most people don't realize"
+## Language rules
 
-### The Big One (FATAL)
+**English (`en`)**
+- Use contractions (don't, can't, won't), except in `tech_doc`.
+- Plain transitions ("so", "but", "then").
 
-- "This isn't X. This is Y." and ALL variations.
-- "Not X. Y."
-- "Forget X. This is Y."
-- "Less X, more Y."
-- ANY sentence that negates one framing then asserts a corrected one.
-- If even ONE of these appears, the output fails. Delete the negation, just state the positive claim.
+**Other languages** have no built-in rules. The profile's `lang.<code>` supplies them: rules, avoid list, preferred vocabulary and examples.
 
-### Self-check before delivering
+## Banned phrases
 
-Before showing any draft to the user (or writing it to a file), scan it:
+**Dead AI language**: "In today's [anything]...", "It's important to note that..." / "It's worth noting...", "Delve" / "Dive into" / "Unpack", "Harness" / "Leverage" / "Utilize", "Landscape" / "Realm" / "Robust", "Game-changer" / "Cutting-edge", "Straightforward", "I'd be happy to help", "In order to".
 
-1. Search for every banned phrase above. Found one? Rewrite that sentence.
-2. Hunt the negate-then-assert pattern ("not X, but Y" in any disguise). This one slips in constantly. Found it? Delete the negation, keep the positive claim.
-3. Check for em dashes. Replace with commas, periods, colons, semicolons, or parentheses.
-4. Check paragraph length. Anything over 3 sentences gets split.
+**Dead transitions**: "Furthermore" / "Additionally" / "Moreover", "Moving forward" / "At the end of the day", "To put this in perspective...", "What makes this particularly interesting is...", "The implications here are...", "In other words...", "It goes without saying...".
 
-This is a mechanical pass, not a vibe check. Do it every time.
+**Engagement bait**: "Let that sink in" / "Read that again" / "Full stop", "This changes everything", "Are you paying attention?", "You're not ready for this".
+
+**AI cringe**: "Supercharge" / "Unlock" / "Future-proof", "10x your productivity", "The AI revolution", "In the age of AI".
+
+**Generic insider claims**: "Here's the part nobody's talking about", "What nobody tells you", anything with "nobody" or "most people don't realize".
+
+The profile's avoid lists (`voice.avoid`, `lang.<code>.avoid`) add to these.
+
+## Self-check
+
+Before showing a draft or writing it to a file, run this pass. It is mechanical.
+
+1. Every banned phrase and every avoid-list entry: found one, rewrite the sentence.
+2. Negate-then-assert in any disguise, in every language: delete the negation, keep the positive claim.
+3. Em dashes: replace them.
+4. Paragraphs over 3 sentences: split them.
+5. Register fit: every sentence belongs to the chosen register. In `work_note` and `message`, cut punchlines, dramatic headings and emotional words. In `tech_doc`, run the checks in `ste.md`.
 
 ## Profile resolution
 
-On invocation, resolve the voice profile in this order:
+1. Read `~/.config/voice-dna.json` (primary, XDG-portable).
+2. Read `~/.voice-dna.json` (legacy fallback).
+3. If neither exists, run the *Calibration flow*.
 
-1. Read `~/.config/voice-dna.json` — primary location (XDG-portable)
-2. Read `~/.voice-dna.json` — legacy fallback
-3. If neither exists, run the **Calibration flow** below
+Hold the profile in context for the whole writing task.
 
-Once loaded, hold the profile in context for the duration of the writing task. Do not re-read on every write operation.
+A `version: 1` profile (flat fields, no `voice` block) is read as: all flat fields form `voice`, and `lead`, `rhythm` and `examples` also form `registers.blog`.
 
-## Applying the profile
+## Profile schema (version 2)
 
-The baseline rules above are already in force. The profile adds the personal layer on top:
-
-- Match the tone, register, and sentence rhythm described in the profile
-- Apply the "avoid" list strictly — these are the user's pet hates, additive to the banned phrases above
-- When the profile has example phrases or vocabulary, prefer them
-- If the profile says "show the mess", include failed attempts, caveats, and honest context — don't sanitize
-
-When in doubt: write something, run the self-check, show it to the user, and ask "does this sound like you?" Adjust from there.
-
-## Profile schema
-
-The JSON file uses this structure:
+All fields are optional. Extra string fields in any block (for example `risk_flagging` in `voice`) are free-form guidance.
 
 ```json
 {
-  "version": 1,
-  "tone": "string — overall register (e.g. 'casual-technical', 'dry', 'direct')",
-  "lead": "string — how to open (e.g. 'tl;dr first', 'punchline first', 'context then point')",
-  "rhythm": "string — sentence length and flow (e.g. 'short bursts', 'varied length', 'long with punchy endings')",
-  "persona": "string — who the author sounds like (e.g. 'sharp colleague over coffee')",
-  "show_process": true,
-  "humor": "string — style of humor if any (e.g. 'self-deprecating, never forced')",
-  "avoid": ["list", "of", "words", "or", "patterns", "to", "never", "use"],
-  "vocabulary": ["preferred", "terms", "or", "phrases"],
-  "structure": {
-    "headings": "string — heading style (e.g. 'practical, not clever')",
-    "bullets": "string — when to use bullets (e.g. 'only when truly list-like, not for prose')",
-    "code_blocks": "string — e.g. 'always with language hint'"
+  "version": 2,
+  "language": "how to choose between languages, e.g. 'match the context'",
+  "voice": {
+    "tone": "overall tone",
+    "persona": "who the author sounds like",
+    "humor": "humor style, used at voice 'full'",
+    "show_process": true,
+    "avoid": ["language-neutral patterns to avoid"],
+    "vocabulary": ["preferred terms"],
+    "structure": { "headings": "...", "bullets": "...", "code_blocks": "..." },
+    "anti_examples": [{ "label": "...", "text": "..." }]
   },
-  "examples": [
-    {
-      "label": "opening sentence",
-      "text": "example text"
+  "registers": {
+    "<name>": {
+      "voice": "full | muted | off",
+      "use_for": "destinations that pick this register",
+      "lead": "how to open",
+      "rhythm": "sentence length and flow",
+      "rules": ["register-specific rules"],
+      "examples": [{ "label": "...", "text": "..." }],
+      "anti_examples": [{ "label": "...", "text": "..." }]
     }
-  ],
-  "anti_examples": [
-    {
-      "label": "corporate opener",
-      "text": "In today's fast-paced digital landscape..."
+  },
+  "lang": {
+    "<code>": {
+      "rules": ["language-specific rules"],
+      "avoid": ["phrases to avoid in this language"],
+      "vocabulary": ["preferred terms in this language"],
+      "examples": [{ "label": "...", "text": "..." }]
     }
-  ]
+  }
 }
 ```
 
-All fields are optional. A minimal profile with just `tone`, `avoid`, and one `example` is enough to meaningfully constrain output.
-
 ## Calibration flow
 
-Run this when no profile exists, or when the user says "update my voice profile" / "recalibrate".
+Run this when no profile exists, or when the user says "update my voice profile" / "recalibrate". The global rules and built-in registers apply regardless, so calibrate the personal layer: voice, the user's own registers, and language-specific habits.
 
-The baseline rules apply regardless, so the profile doesn't need to restate banned phrases or formatting rules. Calibrate the personal stuff: tone, rhythm, vocabulary, humor, registers.
-
-### Step 1 - Gather samples
-
-Ask the user for 2-3 pieces of writing they're happy with. These can be blog posts, chat messages, README sections, commit messages — anything they wrote and liked. Paste or link.
-
-If they have nothing to hand, ask them to describe in their own words how they like to write. Even a few sentences of self-description is a useful signal.
-
-### Step 2 - Analyze
-
-Read the samples and extract:
-- Typical sentence length and rhythm
-- Opening patterns (how do they start sections/posts?)
-- Vocabulary patterns (jargon level, preferred terms, words they never use)
-- Humor style (if any)
-- What they clearly avoid
-- Structural habits (how they use headings, bullets, code)
-
-### Step 3 - Draft the profile
-
-Write a candidate `voice-dna.json` and show it to the user. Explain each field briefly so they can sanity-check.
-
-### Step 4 - Iterate
-
-Ask: "Does this feel right? What's missing or wrong?"
-
-Adjust based on feedback. One round is usually enough.
-
-### Step 5 - Write
-
-Save the finalized profile to `~/.config/voice-dna.json`. Confirm the path to the user.
-
-## Composing with other skills
-
-Other skills that produce public-facing text should load and apply this skill first, then apply the loaded profile to whatever they're writing. The private `cj-blog-damsleth-no` skill does this for blog posts.
+1. **Gather samples.** Ask for 2-3 texts the user is happy with, ideally from different registers (a blog post, a work note, a message). If they have none, ask them to describe how they write.
+2. **Analyze** each sample for register, language, sentence length and rhythm, openings, vocabulary, humor, what they avoid, and structural habits.
+3. **Draft the profile.** Put what holds across samples in `voice`, what differs by text type in `registers`, and what differs by language in `lang`. Show it and explain each field briefly.
+4. **Iterate** once on feedback.
+5. **Write** it to `~/.config/voice-dna.json` and confirm the path.
 
 ## Updating the profile
 
-If the user says "add X to my avoid list" or "I don't like how you wrote that, I never say Y":
+When the user says "add X to my avoid list", "I never say Y", or reacts to a draft ("this is cringe"):
 
-1. Read the current profile
-2. Apply the update
-3. Write the file back
-4. Confirm what changed
+1. Read the current profile.
+2. Place the update on the right axis: every text goes in `voice`, one kind of text goes in `registers.<name>`, one language goes in `lang.<code>`. Put a sentence the user rejected in that register's `anti_examples`.
+3. Write the file back and confirm what changed.
 
-Small incremental updates are better than full recalibration. The profile should drift toward the user's real voice over time.
+Small incremental updates beat recalibration.
+
+## Composing with other skills
+
+Skills that produce text for others to read load this skill first and name the register they write in. The private `cj-blog-damsleth-no` skill writes in `blog`.
