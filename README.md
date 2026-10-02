@@ -6,6 +6,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 
 | Skill | Description |
 |-------|-------------|
+| **cj-ab** | Agent bridge — hand one prompt (plus an optional file) to claude, codex or copilot and get the answer back as text: delegation, second opinions, code translation, alternative drafts. Bundled `agent-bridge` CLI. |
 | **cj-automate** | Audit a workflow and propose automations ordered by leverage — remove humans from transport steps first, collapse waits second, optimize speed last |
 | **cj-cloudflare-worker** | Create or update Cloudflare Workers with GitHub Actions deployment and custom domains |
 | **cj-code-review** | Confidence-filtered code review of a PR, branch, or local diff — several independent review passes, each finding scored and dropped below 80. Model-agnostic. |
