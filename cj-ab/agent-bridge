@@ -1,17 +1,28 @@
 #!/usr/bin/env python3
-"""agent-bridge <claude|codex|copilot> "<prompt>" [file_path]
+"""agent-bridge [-m light|heavy|<model>] <claude|codex|copilot> "<prompt>"|- [file_path]
 
 Runs one headless prompt against another agent CLI and streams its answer to stdout.
 """
+import argparse
 import os
+import signal
 import subprocess
 import sys
 
 # Bridged agents are trusted subagents: no sandbox, no approval prompts, full tool/path/URL access.
+# Every CLI reads the prompt from stdin, so prompt size is not bound by ARG_MAX.
 COMMANDS = {
-    "claude": lambda p: ["claude", "-p", "--dangerously-skip-permissions", p],
-    "codex": lambda p: ["codex", "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", p],
-    "copilot": lambda p: ["copilot", "-p", p, "--allow-all"],
+    "claude": ["claude", "-p", "--dangerously-skip-permissions"],
+    "codex": ["codex", "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", "-"],
+    "copilot": ["copilot", "--silent", "--allow-all"],
+}
+
+# ponytail: tier names are a cache of each CLI's model list (`claude --help`, `codex debug models`,
+# `copilot help config`); refresh when a generation ships. Any other -m value passes through as-is.
+TIERS = {
+    "claude": {"light": "haiku", "heavy": "fable"},
+    "codex": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
+    "copilot": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
 }
 
 
@@ -21,34 +32,55 @@ def die(msg, code=1):
 
 
 def main():
-    if len(sys.argv) not in (3, 4) or sys.argv[1].lower() not in COMMANDS:
-        die(f'usage: agent-bridge <{"|".join(COMMANDS)}> "<prompt>" [file_path]', 2)
-
-    target, prompt = sys.argv[1].lower(), sys.argv[2]
+    ap = argparse.ArgumentParser(prog="agent-bridge", description=__doc__.splitlines()[2])
+    ap.add_argument("-m", "--model", help="light, heavy, or a model name; omit for the CLI's default")
+    ap.add_argument("target", choices=COMMANDS)
+    ap.add_argument("prompt", help='the task brief, or "-" to read it from stdin')
+    ap.add_argument("file_path", nargs="?", help="file to inline after the prompt")
+    a = ap.parse_args()
 
     # Child agents inherit this env, so a bridged agent can't bridge again (no ping-pong).
+    # ponytail: cooperative only; a child that unsets AGENT_BRIDGE or calls a CLI directly gets past it.
     if os.environ.get("AGENT_BRIDGE"):
         die(f"refusing nested bridge call (already inside a call to {os.environ['AGENT_BRIDGE']})")
 
-    if len(sys.argv) == 4:
-        path = sys.argv[3]
+    prompt = sys.stdin.read() if a.prompt == "-" else a.prompt
+    if a.file_path:
+        if not os.path.isfile(a.file_path):  # also rejects FIFOs and devices, which would hang the read
+            die(f"not a regular file: {a.file_path}", 2)
         try:
-            with open(path, encoding="utf-8", errors="replace") as f:
-                prompt = f"{prompt}\n\n--- CONTEXT FILE: {path} ---\n{f.read()}"
+            with open(a.file_path, encoding="utf-8", errors="replace") as f:
+                prompt = f"{prompt}\n\n--- CONTEXT FILE: {a.file_path} ---\n{f.read()}"
         except OSError as e:
             die(f"cannot read context file: {e}", 2)
 
-    # ponytail: prompt goes via argv, ceiling ~1 MB (macOS ARG_MAX); switch to stdin if files get that big.
-    # stdin is /dev/null so codex doesn't append (or wait on) the caller's stdin.
+    cmd = list(COMMANDS[a.target])
+    if a.model:
+        cmd[1:1] = ["--model", TIERS[a.target].get(a.model, a.model)]
+
     try:
-        r = subprocess.run(
-            COMMANDS[target](prompt),
-            stdin=subprocess.DEVNULL,
-            env={**os.environ, "AGENT_BRIDGE": target},
-        )
+        # Own process group, so a cancelled call takes the whole agent tree down with it.
+        # ponytail: SIGKILL on the bridge can't be forwarded and orphans the child.
+        child = subprocess.Popen(cmd, stdin=subprocess.PIPE, text=True, start_new_session=True,
+                                 env={**os.environ, "AGENT_BRIDGE": a.target})
     except FileNotFoundError:
-        die(f"'{target}' CLI not found on PATH")
-    sys.exit(r.returncode)
+        die(f"'{a.target}' CLI not found on PATH")
+
+    def forward(sig, _):
+        try:
+            os.killpg(child.pid, sig)
+        except ProcessLookupError:
+            pass
+    for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(s, forward)
+
+    try:
+        child.stdin.write(prompt)
+        child.stdin.close()
+    except BrokenPipeError:
+        pass
+    rc = child.wait()
+    sys.exit(128 - rc if rc < 0 else rc)  # killed by signal N -> 128+N, like a shell
 
 
 if __name__ == "__main__":
