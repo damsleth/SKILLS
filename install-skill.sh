@@ -180,7 +180,14 @@ skill_cli_install() {
     local name="$1" src="$2"
     case "$name" in
         cj-todo) bash "$src/todo.sh" install "$CLI_BIN_DIR" 2>/dev/null || true ;;
-        cj-ab) mkdir -p "$CLI_BIN_DIR" && ln -sf "$src/agent-bridge" "$CLI_BIN_DIR/agent-bridge" ;;
+        cj-ab)
+            local link="$CLI_BIN_DIR/agent-bridge"
+            if [ -e "$link" ] && [ ! -L "$link" ]; then
+                echo "  ! $link exists and is not a symlink; leaving it alone"
+            else
+                mkdir -p "$CLI_BIN_DIR" && ln -sfn "$src/agent-bridge" "$link"
+            fi
+            ;;
     esac
 }
 
@@ -909,12 +916,13 @@ apply_changes() {
             if [ $created -gt 0 ]; then
                 if [ $blocked -eq 0 ]; then
                     echo -e "  ${GREEN}✓${RESET} Installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
-                    skill_cli_install "$name" "$src"
                 else
                     echo -e "  ${CYAN}◐${RESET} Partially installed ${BOLD}$name${RESET} ${DIM}(${created} target(s))${RESET}"
                 fi
                 changed=$((changed + 1))
             fi
+            # CLI hooks are idempotent: run on every apply so a missing companion CLI gets repaired.
+            [ $blocked -eq 0 ] && skill_cli_install "$name" "$src"
             if [ $blocked -gt 0 ]; then
                 echo -e "  ${RED}!${RESET} Install incomplete for ${BOLD}$name${RESET} ${DIM}(${blocked} blocked target(s))${RESET}"
             fi
@@ -927,9 +935,9 @@ apply_changes() {
             done
             if [ $removed -gt 0 ]; then
                 echo -e "  ${RED}✗${RESET} Uninstalled ${BOLD}$name${RESET} ${DIM}(${removed} target(s))${RESET}"
-                skill_cli_uninstall "$name"
                 changed=$((changed + 1))
             fi
+            skill_cli_uninstall "$name"
         fi
     done
 
