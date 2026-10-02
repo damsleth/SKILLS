@@ -22,7 +22,7 @@ COMMANDS = {
 TIERS = {
     "claude": {"light": "haiku", "heavy": "fable"},
     "codex": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
-    "copilot": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
+    "copilot": {"light": "claude-sonnet-5.5", "heavy": "claude-opus-5.5"},
 }
 
 
