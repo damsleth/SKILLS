@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""agent-bridge <claude|codex|copilot> "<prompt>" [file_path]
+
+Runs one headless prompt against another agent CLI and streams its answer to stdout.
+"""
+import os
+import subprocess
+import sys
+
+# ponytail: read-only defaults on every target (codex sandbox, no tool approvals for
+# claude/copilot). Add --full-auto / --allow-all-tools here if the target must edit.
+COMMANDS = {
+    "claude": lambda p: ["claude", "-p", p],
+    "codex": lambda p: ["codex", "exec", "--skip-git-repo-check", p],
+    "copilot": lambda p: ["copilot", "-p", p],
+}
+
+
+def die(msg, code=1):
+    print(f"[agent-bridge] {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def main():
+    if len(sys.argv) not in (3, 4) or sys.argv[1].lower() not in COMMANDS:
+        die(f'usage: agent-bridge <{"|".join(COMMANDS)}> "<prompt>" [file_path]', 2)
+
+    target, prompt = sys.argv[1].lower(), sys.argv[2]
+
+    # Child agents inherit this env, so a bridged agent can't bridge again (no ping-pong).
+    if os.environ.get("AGENT_BRIDGE"):
+        die(f"refusing nested bridge call (already inside a call to {os.environ['AGENT_BRIDGE']})")
+
+    if len(sys.argv) == 4:
+        path = sys.argv[3]
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                prompt = f"{prompt}\n\n--- CONTEXT FILE: {path} ---\n{f.read()}"
+        except OSError as e:
+            die(f"cannot read context file: {e}", 2)
+
+    # ponytail: prompt goes via argv, ceiling ~1 MB (macOS ARG_MAX); switch to stdin if files get that big.
+    # stdin is /dev/null so codex doesn't append (or wait on) the caller's stdin.
+    try:
+        r = subprocess.run(
+            COMMANDS[target](prompt),
+            stdin=subprocess.DEVNULL,
+            env={**os.environ, "AGENT_BRIDGE": target},
+        )
+    except FileNotFoundError:
+        die(f"'{target}' CLI not found on PATH")
+    sys.exit(r.returncode)
+
+
+if __name__ == "__main__":
+    main()

@@ -180,6 +180,7 @@ skill_cli_install() {
     local name="$1" src="$2"
     case "$name" in
         cj-todo) bash "$src/todo.sh" install "$CLI_BIN_DIR" 2>/dev/null || true ;;
+        cj-ab) mkdir -p "$CLI_BIN_DIR" && ln -sf "$src/agent-bridge" "$CLI_BIN_DIR/agent-bridge" ;;
     esac
 }
 
@@ -192,6 +193,13 @@ skill_cli_uninstall() {
             if [ -L "$link" ] && [ "$(readlink "$link")" = "$(skill_path_by_name cj-todo)/todo.sh" ]; then
                 rm -f "$link"
                 echo "  Unlinked todo CLI ($link)"
+            fi
+            ;;
+        cj-ab)
+            local link="$CLI_BIN_DIR/agent-bridge"
+            if [ -L "$link" ] && [ "$(readlink "$link")" = "$(skill_path_by_name cj-ab)/agent-bridge" ]; then
+                rm -f "$link"
+                echo "  Unlinked agent-bridge CLI ($link)"
             fi
             ;;
     esac
