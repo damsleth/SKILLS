@@ -28,10 +28,10 @@ Any target is valid, including your own kind. `agent-bridge claude` from Claude 
 ## Running it
 
 - **Timeout.** A call takes 1 to 5 minutes. Set the shell tool's timeout to 10 minutes (600000 ms), or run it in the background, so a slow answer is not lost.
-- **Read-only.** The target runs with its default sandbox and approvals, so it reads files but makes no edits. The bridge returns text, and you apply the result yourself.
+- **Full access.** The target runs with no sandbox and no approval prompts: it can edit files, run commands and reach the network in your working directory. Say in the prompt whether you want edits made or only an answer back, and review `git diff` after a call that edits.
 - **One hop.** A call made from inside a bridged agent is refused, which stops agents bouncing prompts between each other.
 - **Failures.** Errors start with `[agent-bridge]` on stderr: bad usage, an unreadable file, or a CLI missing from PATH. The bridge passes the target's own errors and exit code through as-is.
 
 ## Using the answer
 
-The answer is input to your judgement. Check it against the code before applying it or relaying it, and tell the user which agent it came from. When you are cross-checking, report where the two answers agree and where they differ.
+The answer is input to your judgement. Check it, and any edits it made, against the code before building on it or relaying it, and tell the user which agent it came from. When you are cross-checking, report where the two answers agree and where they differ.
