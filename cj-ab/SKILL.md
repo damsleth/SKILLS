@@ -31,11 +31,11 @@ Any target is valid, including your own kind. `agent-bridge claude` from Claude 
 
 If the user named a model, pass it with `-m` exactly as given. Otherwise pick the tier from the task's complexity:
 
-- **medium**: the usual choice, for everyday work: a focused review, a single-module change, an alternative draft, a translation with real logic in it.
+- **medium**: the usual choice, including hard work: a focused or cross-cutting review, a hard bug, a multi-file change, an alternative draft, a translation with real logic in it.
 - **light**: only for trivially mechanical work with one right answer: reformatting, a quick lookup, a yes/no sanity check.
-- **heavy**: work where depth decides the outcome: a cross-cutting review or audit, architecture or security judgement, a hard bug, a multi-file change.
+- **heavy**: expensive (Fable on claude), so reach for it only when the user asks for it, or when the problem is extraordinarily difficult and `medium` has already fallen short on it.
 
-When torn between two tiers, take the higher one. Omitting `-m` runs the CLI's configured default model. The tier names map to concrete models in the script's `TIERS` table.
+Torn between light and medium, take medium; torn between medium and heavy, stay on medium. Omitting `-m` runs the CLI's configured default model. The tier names map to concrete models in the script's `TIERS` table.
 
 ## Running it
 
