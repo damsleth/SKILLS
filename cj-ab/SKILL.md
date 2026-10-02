@@ -8,7 +8,7 @@ description: Agent bridge — hand one task (plus an optional file) to another c
 `agent-bridge` runs one headless prompt against another agent CLI and streams that agent's answer to stdout:
 
 ```bash
-agent-bridge [-m light|heavy|<model>] <claude|codex|copilot> "<prompt>"|- [file_path]
+agent-bridge [-m light|medium|heavy|<model>] <claude|codex|copilot> "<prompt>"|- [file_path]
 ```
 
 If `agent-bridge` is not on PATH, call it by path from this skill folder.
@@ -31,11 +31,11 @@ Any target is valid, including your own kind. `agent-bridge claude` from Claude 
 
 If the user named a model, pass it with `-m` exactly as given. Otherwise pick the tier from the task's complexity:
 
-- **light**: mechanical, well-specified work with one right answer: syntax translation of a small file, reformatting, a quick lookup, a yes/no sanity check.
-- **default** (omit `-m`): the CLI's configured model, for everyday work: a focused review, a single-module change, an alternative draft.
+- **medium**: the usual choice, for everyday work: a focused review, a single-module change, an alternative draft, a translation with real logic in it.
+- **light**: only for trivially mechanical work with one right answer: reformatting, a quick lookup, a yes/no sanity check.
 - **heavy**: work where depth decides the outcome: a cross-cutting review or audit, architecture or security judgement, a hard bug, a multi-file change.
 
-When torn between two tiers, take the higher one. The tier names map to concrete models in the script's `TIERS` table.
+When torn between two tiers, take the higher one. Omitting `-m` runs the CLI's configured default model. The tier names map to concrete models in the script's `TIERS` table.
 
 ## Running it
 
