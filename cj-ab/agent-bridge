@@ -18,7 +18,9 @@ COMMANDS = {
 }
 
 # ponytail: tier names are a cache of each CLI's model list (`claude --help`, `codex debug models`,
-# `copilot help config`); refresh when a generation ships. Any other -m value passes through as-is.
+# `copilot help config`); refresh when a generation ships. Each tier names the NEWEST model of its line
+# (gpt-6.1-sol over gpt-6-sol, claude-sonnet-5.5 over claude-sonnet-5); claude's bare aliases track it
+# by themselves. Any other -m value passes through as-is.
 TIERS = {
     "claude": {"light": "haiku", "heavy": "fable"},
     "codex": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
