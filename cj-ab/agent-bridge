@@ -7,12 +7,11 @@ import os
 import subprocess
 import sys
 
-# ponytail: read-only defaults on every target (codex sandbox, no tool approvals for
-# claude/copilot). Add --full-auto / --allow-all-tools here if the target must edit.
+# Bridged agents are trusted subagents: no sandbox, no approval prompts, full tool/path/URL access.
 COMMANDS = {
-    "claude": lambda p: ["claude", "-p", p],
-    "codex": lambda p: ["codex", "exec", "--skip-git-repo-check", p],
-    "copilot": lambda p: ["copilot", "-p", p],
+    "claude": lambda p: ["claude", "-p", "--dangerously-skip-permissions", p],
+    "codex": lambda p: ["codex", "exec", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", p],
+    "copilot": lambda p: ["copilot", "-p", p, "--allow-all"],
 }
 
 
