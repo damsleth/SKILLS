@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent-bridge [-m light|heavy|<model>] <claude|codex|copilot> "<prompt>"|- [file_path]
+"""agent-bridge [-m light|medium|heavy|<model>] <claude|codex|copilot> "<prompt>"|- [file_path]
 
 Runs one headless prompt against another agent CLI and streams its answer to stdout.
 """
@@ -22,9 +22,9 @@ COMMANDS = {
 # (gpt-6.1-sol over gpt-6-sol, claude-sonnet-5.5 over claude-sonnet-5); claude's bare aliases track it
 # by themselves. Any other -m value passes through as-is.
 TIERS = {
-    "claude": {"light": "haiku", "heavy": "fable"},
-    "codex": {"light": "gpt-6-luna", "heavy": "gpt-6-astra"},
-    "copilot": {"light": "claude-sonnet-5.5", "heavy": "claude-opus-5.5"},
+    "claude": {"light": "sonnet", "medium": "opus", "heavy": "fable"},
+    "codex": {"light": "gpt-6-luna", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
+    "copilot": {"light": "gpt-6-luna", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
 }
 
 
@@ -35,7 +35,7 @@ def die(msg, code=1):
 
 def main():
     ap = argparse.ArgumentParser(prog="agent-bridge", description=__doc__.splitlines()[2])
-    ap.add_argument("-m", "--model", help="light, heavy, or a model name; omit for the CLI's default")
+    ap.add_argument("-m", "--model", help="light, medium, heavy, or a model name; omit for the CLI's default")
     ap.add_argument("target", choices=COMMANDS)
     ap.add_argument("prompt", help='the task brief, or "-" to read it from stdin')
     ap.add_argument("file_path", nargs="?", help="file to inline after the prompt")
