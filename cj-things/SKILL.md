@@ -142,10 +142,10 @@ Bulk delete via query filters needs `--confirm=delete --yes`.
 `update*` commands need a Things URL-scheme token in `THINGS_AUTH_TOKEN`.
 
 **On this machine the token lives in 1Password** and resolves via the `secret` helper
-(`~/.zsh/secrets.zsh`) — no need to touch the Things UI:
+(`~/.config/zsh/secrets.zsh`) — no need to touch the Things UI:
 
 ```bash
-source ~/.zsh/secrets.zsh 2>/dev/null   # required in harness/non-interactive shells:
+source ~/.config/zsh/secrets.zsh 2>/dev/null   # required in harness/non-interactive shells:
                                         # the snapshot has a stale `secret` fn and loses
                                         # OP_SECRETS. Trailing compdef error is harmless —
                                         # don't `&&` directly after source.
