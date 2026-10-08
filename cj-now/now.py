@@ -428,13 +428,15 @@ URGENT_DAYS = 14
 
 
 def mark_dupes(items: list[dict]) -> int:
-    """Flag, never drop, a Things/plans row that names an ADO id in its title.
+    """Mark, never drop, a Things row that names an ADO id in its title.
 
     The ids come from the ADO rows themselves rather than a five-digit guess, so an
     an order number (8 digits here) or a year can never be mistaken for a work
-    item. Both rows stay visible on purpose: the duplicate is a leftover from
-    tracking the same work in two places, and seeing it is what prompts closing
-    the Things copy.
+    item. A Things task with an ADO id is by convention a PERSONAL sub-step of
+    that work item, not a copy of it (2026-10-08), so the mark is a view
+    (`--dupes`), not a warning. Plans are skipped: a `.plans/` file that
+    names its work item is where the reasoning lives, and duplicating the id
+    there is intended.
     """
     ado = {i["id"].split(":", 1)[1]: i for i in items if i["source"] == "ado"}
     if not ado:
@@ -442,7 +444,7 @@ def mark_dupes(items: list[dict]) -> int:
     pattern = re.compile(r"\b(" + "|".join(map(re.escape, ado)) + r")\b")
     n = 0
     for rec in items:
-        if rec["source"] == "ado":
+        if rec["source"] != "things":
             continue
         # A plan says which work item it belongs to; Things only says it in
         # the title. Trust the declaration before the regex.
@@ -585,8 +587,8 @@ def selfcheck() -> int:
         item(id="plans:y", source="plans", title="Urelatert plan", profile="nc", status="plan",
              ado_ids=["99999"], kind="plan"),
     ]
-    assert mark_dupes(rows) == 2, "only the real duplicates are flagged"
-    assert rows[5]["dupe_of"] == "ado:18520", "an ado: link counts without a title match"
+    assert mark_dupes(rows) == 1, "only the Things sub-step is marked"
+    assert not rows[5].get("dupe_of"), "a plan naming its work item is intended, never marked"
     assert not rows[6].get("dupe_of"), "a link to a closed or unknown id is not a duplicate"
     assert rows[1]["dupe_of"] == "ado:18520"
     assert not rows[2].get("dupe_of"), "an 8-digit order number is not a work item id"
@@ -697,16 +699,6 @@ def main() -> int:
             # In the title, not the id: the id column clips at 34 and ate the
             # target on exactly the long plan rows that needed it most.
             rec["title"] = f"{rec['dupe_of']}  {rec['title']}"
-
-    dupes = [i for i in items if i.get("dupe_of")]
-    if dupes:
-        # The copy can live in Things or in .plans/; naming only Things sent you
-        # hunting for Things rows that were not there.
-        where = "/".join(sorted({i["source"] for i in dupes}))
-        WARNINGS.append(
-            f"{len(dupes)} ⧉ dublett(er) i {where}: samme sak i ADO, "
-            f"lukk kopien (now --dupes)"
-        )
 
     if args.agent:
         print(render_agent(items, sources))

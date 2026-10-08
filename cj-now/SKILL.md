@@ -15,7 +15,7 @@ now --profile une       one profile, uncapped
 now --source plans      one source (plans | things | ado), repeatable
 now --grep 18520        search title and id, every profile, unfiltered
 now --full              no row cap, and no Things relevance filter
-now --dupes             only the rows that duplicate an ADO work item
+now --dupes             only Things rows that name an ADO work item (personal sub-steps)
 now --upcoming          only Things tasks scheduled to start later
 now --all               include non-work profiles (brkh, dno, fdep)
 now --agent             JSON, owa-suite envelope
@@ -112,21 +112,21 @@ personal profile and roughly triples that, which is `--all` doing its job rather
 than a problem to work around. Scope with `--profile` or the default work view;
 reaching for `--source things` to control size silently drops ADO and plans.
 
-`⧉` marks a row that points at an ADO work item also in the list, via a plan's
-`ado:` frontmatter or an id in the title that is also in the list, and
-the footer counts them. Both rows stay visible: the duplicate comes from
-tracking one piece of work in two places, and seeing it is what prompts closing
-the Things copy. Expect these to fade as work items stop being copied into
-Things.
+`⧉` marks a Things row whose title names an ADO work item also in the list.
+By convention (2026-10-08) such a task is a **personal sub-step** of that work
+item, never a copy of it: the work item holds the status, the Things task holds
+what Kim does next about it. So the mark is a view, not a warning, and there is
+no footer nag. A `.plans/` file naming its work item is not marked at all: that
+is where the reasoning lives, and the duplication is intended.
 
 `--grep` is a search, so it runs before the relevance filter and across every
 profile: naming a needle means look everywhere. `--full --all` is not needed to
 make a search work.
 
-`--dupes` lists them and names the work item each one shadows, which is the
-cleanup list. From an agent, prefer `--agent`: every record carries `dupe_of`
-with the id it duplicates, so the duplicates are a filter away and never need
-grepping out of the rendered table.
+`--dupes` lists them and names the work item each one belongs to. The one thing
+to look for there is a Things task that *is* the work item (same title, no
+personal step in it); that one is a leftover and gets cancelled. From an agent,
+prefer `--agent`: every record carries `dupe_of` with the work item id.
 
 Drift shows up on its own, no detector needed. A plan touched 2 days ago sitting
 next to its Things task untouched for 17 days in Someday is the signal. Read it
