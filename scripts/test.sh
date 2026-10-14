@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TODO="$REPO_ROOT/cj-todo/todo.sh"
 INSTALLER="$REPO_ROOT/install-skill.sh"
-TMP_ROOT="$(mktemp -d /private/tmp/skills-tests.XXXXXX)"
+TMP_ROOT="$(mktemp -d)"
 
 cleanup() {
     rm -rf "$TMP_ROOT"
