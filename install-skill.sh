@@ -390,7 +390,7 @@ recompute_filter() {
 group_all_selected() {
     local g="$1" j any=0
     for ((j = 0; j < count; j++)); do
-        [ "${SKILL_GROUP[$j]}" = "$g" ] && [ "${SKILL_KIND[$j]}" != "group" ] || continue
+        { [ "${SKILL_GROUP[$j]}" = "$g" ] && [ "${SKILL_KIND[$j]}" != "group" ]; } || continue
         any=1
         [ "${selected[$j]}" = "1" ] || return 1
     done
