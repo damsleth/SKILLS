@@ -307,7 +307,7 @@ EOF
 }
 
 # ── dispatch ──
-cmd="${1:-list}"; [ "$#" -gt 0 ] && shift || true
+cmd="${1:-list}"; if [ "$#" -gt 0 ]; then shift; fi
 case "$cmd" in
   add)            cmd_add "$@" ;;
   plan)           cmd_plan "$@" ;;
