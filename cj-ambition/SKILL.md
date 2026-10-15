@@ -1,6 +1,6 @@
 ---
 name: cj-ambition
-description: Raise the ambition of the current task along one axis before executing it — altitude (zoom out to the goal beyond the goal), depth (deeper not bigger, the way the best in the field would), or range (bring in other disciplines, assemble the crew). Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", "/cj-ambition <axis>", or hands over a task that reads like a template to fill in.
+description: Raise the ambition of the current task along one axis before executing it — altitude (zoom out to the goal beyond the goal), depth (deeper not bigger, the way the best in the field would), or range (bring in other disciplines, assemble the crew). Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", or "/cj-ambition <axis>".
 ---
 
 # Ambition
