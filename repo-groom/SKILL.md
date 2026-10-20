@@ -12,7 +12,7 @@ file that is already good.
 
 ## Local overlay
 
-If `~/.config/agent-skills/repo-groom.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/repo-groom.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## 1. Resolve tier and stack (read-only)
 

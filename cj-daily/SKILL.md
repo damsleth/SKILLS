@@ -9,12 +9,12 @@ Morning ritual: assemble today's daily note from known sources, in a known forma
 
 ## Local overlay
 
-If `~/.config/agent-skills/cj-daily.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/cj-daily.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Boot
 
 0. **Probe optional sources** once with `command -v`: `now`, `owa-cal`, `yaams`, `ledger`, `things`. Only the journal folder is required. Each other source is used when its command exists, and a missing one is named once in the briefing. If `yaams` exists, start `yaams ingest --json` in the background now; it is slow, and Step 4 collects it.
-1. **Resolve `{vault}`** the way the cj-notes skill's *Resolve the vault* section does: this overlay, then `NOTES_VAULT`, then `ledger paths --json`, then ask once and suggest saving the answer to `~/.config/agent-skills/cj-daily.md`. Read `{vault}/AGENTS.md` if it exists.
+1. **Resolve `{vault}`** the way the cj-notes skill's *Resolve the vault* section does: this overlay, then `NOTES_VAULT`, then `ledger paths --json`, then ask once and suggest saving the answer to `~/.config/cj-skills/cj-daily.md`. Read `{vault}/AGENTS.md` if it exists.
 2. **Resolve the journal folder and filename:** overlay, then `{vault}/AGENTS.md`, then `{vault}/.obsidian/daily-notes.json` (`folder`, `format`), then `{vault}/journal/` with `YYYY-MM-DD.md`.
 3. **Pick the mode:**
 

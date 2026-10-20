@@ -16,7 +16,7 @@ profile and auth policy to this file. Change that policy here.
 
 ## Local overlay
 
-If `~/.config/agent-skills/cj-owa-tools.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/cj-owa-tools.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Requirements
 
