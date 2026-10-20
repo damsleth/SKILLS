@@ -49,8 +49,10 @@ skill never needs it.
 
 Mirror the trigger language. Event subjects and bodies, mail drafts and your
 own replies follow the language the user invoked the skill with. When replying
-to or forwarding an existing message, match that thread's language. CLI flags,
-profile aliases and category names stay in their canonical form.
+to or forwarding an existing message, match that thread's language. When the
+trigger language is ambiguous, default to Norwegian (Bokmål) unless the overlay
+names another, and stay in it until the user switches. CLI flags, profile
+aliases and category names stay in their canonical form.
 
 ## Profiles
 
@@ -153,8 +155,10 @@ Syntax: `<tool> --help`. Below is only what the help leaves out.
 
 - **owa-cal**: `create` defaults to today, 09:00-10:00, W. Europe Standard
   Time. Category names are case-sensitive; `owa-cal categories` lists them.
-  When creating a work event without a category, ask for one unless the
-  overlay says otherwise.
+  Categories link events to billing projects, which timesheet matching
+  (`owa-swodp`) relies on: give every work event one, and ask when the user
+  has not. Non-work events (personal blocks, lunch) need one only when the
+  user wants it.
 - **owa-mail**: folder shortcuts `Inbox`, `Drafts`, `SentItems`,
   `DeletedItems`, `Junk`, `Archive`, or a folder id. `--search` is raw Outlook
   KQL.
@@ -171,12 +175,14 @@ Syntax: `<tool> --help`. Below is only what the help leaves out.
   `owa-teams config --region`). Channel `members` is scope-walled (exit 12);
   chat members work.
 - **owa-planner**: read-only.
-- **owa-todo**: full CRUD on Microsoft To Do. Use it for tasks that must live
-  in To Do; the overlay may name a different primary task system.
+- **owa-todo**: full CRUD on Microsoft To Do. Use it only for tasks that must
+  live in To Do (shared or work flows). When Things 3 (cj-things) is installed
+  it is the primary task system and `now` (cj-now) the read across it; `now`
+  does not read To Do, so a personal task filed there drops out of view.
 - **owa-sites**: site = bare name, path (`sites/x`, `teams/x`), full URL, or
   omitted for the tenant root. Mints a SharePoint-resource token; the host
   auto-discovers unless pinned with `owa-sites config --host`. `search --q` is
-  tenant-wide search.
+  tenant-wide search. The best lever for SharePoint-heavy (SPFx) work.
 - **owa-vids**: `<source>` is the pasted recording URL (Stream page, copy-link
   or videomanifest; kind auto-detected). `get` needs `ffmpeg` on PATH. Pairs
   with `cj-meetings` recap (download, transcribe, summarize) and
@@ -188,7 +194,10 @@ Syntax: `<tool> --help`. Below is only what the help leaves out.
   `--confirm`; a write aimed at a Submitted, Approved or Processed card exits
   15 and leaves it untouched. Prefer `--instance uat`. A production write
   needs explicit authorization plus snapshot, one reviewed row, verify,
-  restore.
+  restore. Take every snapshot or verification read from the bare binary:
+  output routed through `rtk proxy` or the rtk hook has dropped rows and
+  rewritten `Approved` to `Submitted` on a `cards` read, so never gate a
+  decision on it.
 - **owa-doctor** / **owa doctor**: exit `0` ok, `1` a token near expiry
   (< 10 min), `2` fail. `--no-tokens` checks installs only.
 
@@ -210,10 +219,21 @@ owa-sched --profile <profile> find-time --who a@x.com,b@x.com,<me> --duration 30
 owa-cal   --profile <profile> create --subject "<...>" --date tomorrow --start 10:00 --end 10:30 --category "<cat>"
 ```
 
-**Expand a week-shape into events.** When the user describes a week ("Tuesday
-and Thursday at the client, Friday off"), resolve each weekday to a date, pick
-the matching workday template from the overlay per day, list the full plan
-back, and create only after confirmation.
+**Expand a workday template.** The overlay may define workday templates: a
+name, trigger phrases, a profile, and time blocks with categories, e.g.
+
+```
+08:00-11:00  <Client>  [<category>]
+11:00-11:30  Lunch     [<lunch category>]
+11:30-16:00  <Client>  [<category>]
+```
+
+A day off is `owa-cal create --allday` with a `PTO`-style category. When the
+user's intent matches a template, create its events on each date without
+asking for the times and categories it already specifies. For a week-shape
+("Tuesday and Thursday at the client, Friday off"), resolve each weekday to a
+date and pick one template per day. Either way, list the resolved dates and
+events back and create only after confirmation.
 
 **Audit one profile end to end.**
 

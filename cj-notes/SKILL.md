@@ -20,7 +20,7 @@ Take the first that answers, then use the literal absolute path (`{vault}` below
 
 1. The overlay names the vault.
 2. `printenv NOTES_VAULT`.
-3. `command -v ledger` succeeds: `ledger paths --json`, key `source_notes_dir`.
+3. `~/.config/ledger/config.yaml` exists: read its `source_notes_dir` (expand `~`). It is the single source of truth for every ledger path; `ledger paths --json` is the fallback, and shell env vars (`LEDGER_ROOT` etc.) only override it.
 4. Ask the user once for the vault path, and suggest saving it to `~/.config/cj-skills/cj-notes.md` so the question never comes back.
 
 Read `{vault}/AGENTS.md` before the first write if it exists; it holds the vault's own folder and naming rules. Run commands with absolute paths from the current directory rather than `cd {vault} && <write>`.
@@ -39,13 +39,14 @@ Decide first whether you hold a dated event or durable reasoning. They go to dif
 
 | What you have | Destination |
 |---|---|
-| Something the user did, or that happened, at a time | one line in today's daily note, if the vault keeps one |
+| Something the user did, or that happened, at a time | one `- **HH:MM** <text>` line in today's daily note, if the vault keeps one |
 | Reasoning, a checklist, a root cause, a decision and its why | the topic's **running note**, under a dated `## YYYY-MM-DD` heading |
-| An actionable item | the user's task manager (load the cj-things skill if installed), not a checkbox in the note |
+| An actionable item | the user's task manager (load the cj-things skill if installed), not a checkbox in the note. A Things task may name an Azure DevOps id as a personal sub-step, never duplicate the work item itself |
 | Your own operational chatter (a tool ran, a source failed) | the vault's agent log folder if it has one, otherwise nowhere |
 | A durable fact, preference, decision, goal or loop | long-term memory, per *Ledger sync* |
 
-- A daily-note entry is one line. When it needs sub-bullets it is a report and belongs in the running note.
+- When today's daily note does not exist, create it through the cj-daily skill's *Ensure today's note*, so every writer produces the same skeleton (and no headline line, which marks the day as unclosed).
+- A daily-note entry is one line, with at most one level of sub-bullets (cj-daily *Step 5*). Anything longer is a report and belongs in the running note.
 - The test for a daily-note entry is who acted: the user's own work stays; your lookups on their behalf do not.
 - Insert a new entry chronologically. The user edits these files by hand, so leave existing lines as they are.
 - A running note survives only while something writes to it. Revive an existing one before creating another, keep the year out of its name, and split it when a topic earns its own file.
@@ -70,8 +71,9 @@ When the user asks an investigative question mid-capture ("why is X missing?") t
 
 ### 4. Write the note
 
-- Load the cj-voice-dna skill before every write, if installed.
-- Write in the language the user opened with, and stay in it unless they switch.
+- Load the cj-voice-dna skill before every write, whatever the note's length, if installed. Also read `{ledger}/01_identity/id__voice_dna.md` (`{ledger}` as resolved in *Ledger sync*) when it exists.
+- Write in the language the user opened with, and stay in it unless they switch. When ambiguous, default to Norwegian (Bokmål) unless the overlay names another. Frontmatter keys, paths and tags stay in English.
+- **Typography**: wherever a dash is wanted (note body, log lines, task titles, chat replies), write the spaced en-dash (` – `). The em-dash (`—`) is the clearest tell of machine-written text; recast with a comma, colon, parenthesis or two sentences, and check the text for it before writing to disk. The rule holds even when cj-voice-dna fails to load. Other skills that write into the vault point here.
 - Concise and scannable: practical headings, and the decisions, next steps, owners and dates the input carries.
 
 ### 5. Sync durable items
@@ -84,7 +86,9 @@ List the files changed and any unresolved question that blocked a full sync. "Lo
 
 ### Planning and triage
 
-When the user asks to plan their day or week, or what is due, read the open picture before planning: `now` (cj-now skill) covers repo `.plans/`, Things and Azure DevOps in one read-only call (`now --agent` for JSON, `now --grep <keyword>`, `now --full` for the backlog, `now --upcoming` for deferred work). Writing tasks back goes through cj-things.
+When the user asks to plan their day or week, or what is due, read the open picture before planning: `now` (cj-now skill) covers repo `.plans/`, Things and Azure DevOps in one read-only call (`now --agent` for JSON, `now --profile <alias>` for one owa-piggy profile, `now --all` to add the personal areas, `now --grep <keyword>`, `now --full` for the backlog, `now --upcoming` for deferred work). Writing tasks back goes through cj-things.
+
+Context that is useful only for later search, not durable, belongs in `yaams` (when installed), not the ledger.
 
 ---
 
@@ -101,7 +105,7 @@ ledger init --ledger-notes-dir <dir> --source-notes-dir <vault>
 
 ### Boot
 
-1. `ledger paths --json` gives `ledger_root` (code, `templates/`, `schema.yaml`), `ledger_notes_dir` (the corpus, `{ledger}` below) and `source_notes_dir`. Use the literal resolved paths in commands; `$VAR` syntax triggers permission prompts.
+1. The ledger config (read directly, as in *Resolve the vault*, or via `ledger paths --json`) gives `ledger_root` (code, `templates/`, `schema.yaml`), `ledger_notes_dir` (the corpus, `{ledger}` below) and `source_notes_dir`. Use the literal resolved paths in commands; `$VAR` syntax triggers permission prompts.
 2. Read `{ledger}/08_indices/context.md`: the essential facts, active loops and key preferences. For deeper lookups use `{ledger}/08_indices/index.md` or `index.json`, loaded on demand.
 3. Before any write, run `sheep status`; when it says sleep is due, run `sheep sleep` and `sheep index` first. Pure queries skip this.
 
@@ -135,7 +139,7 @@ ledger init --ledger-notes-dir <dir> --source-notes-dir <vault>
 2. New note: `ledger notes add --type <fact|pref|loop|concept|goal|id> --no-inbox --scope <scope> --tag <tag> --link <path> "<body>"`. It picks the slug, applies the template, files the note and logs the `created` timeline entry. Drop `--no-inbox` to stage in `00_inbox/` for triage.
 3. Existing note: edit the file, bump `updated`, then log the change (below).
 
-An open loop needs a `status` and a concrete `Next action` checkbox. When `things3_sync_enabled` is on in the ledger config, `ledger loops sync` mirrors loops to Things, routed by scope; set `things_list_id: <area-uuid>` in a loop's frontmatter to route it explicitly (`things areas --json` lists the ids).
+An open loop needs a `status` and a concrete `Next action` checkbox. When `things3_sync_enabled` is on in the ledger config, `ledger loops sync` mirrors loops to Things, routed by scope; set `things_list_id: <area-uuid>` in a loop's frontmatter to route it explicitly (`things areas --json` lists the ids). `scope: work` has no default area and lands in the Things Inbox, so give those loops a `things_list_id`.
 
 ### Timeline logging
 

@@ -41,6 +41,9 @@ Default run is local-only and takes about a second. Use `--network` when the
 user asks about dead remotes or it's been a while — it adds a few seconds and
 can hang on VPN-only hosts.
 
+When a weekly cron is set up, it runs `python3 <skill-dir>/repo-health.py --network`,
+so a fresh `REPO-HEALTH.md` is usually already at the root; read it before rerunning.
+
 ## Then
 
 1. Run the script. It writes the whole report itself, including a heuristic
