@@ -17,7 +17,7 @@ The security & dependency fixer in the repo-routine family. Two halves:
 
 ## Local overlay
 
-If `~/.config/agent-skills/repo-deps.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/repo-deps.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Scope & tiers
 

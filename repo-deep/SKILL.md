@@ -21,7 +21,7 @@ It is the **most expensive** routine, so:
 
 ## Local overlay
 
-If `~/.config/agent-skills/repo-deep.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/repo-deep.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## 1. Select + resolve tier (read-only)
 

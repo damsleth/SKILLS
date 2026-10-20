@@ -16,7 +16,7 @@ user's language. Code and logs stay in English.
 
 ## Local overlay
 
-If `~/.config/agent-skills/cj-meetings.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/cj-meetings.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Requirements
 

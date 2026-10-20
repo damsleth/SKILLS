@@ -14,7 +14,7 @@ for a fix mid-sweep, finish the report first and hand off to the fixer skill.
 
 ## Local overlay
 
-If `~/.config/agent-skills/repo-health.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/repo-health.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Scope
 

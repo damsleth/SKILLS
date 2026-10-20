@@ -12,7 +12,7 @@ Two layers, written in this order:
 
 ## Local overlay
 
-If `~/.config/agent-skills/cj-notes.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
+If `~/.config/cj-skills/cj-notes.md` exists, read it before acting. It holds this user's own profiles, paths and conventions, and it wins over the defaults here.
 
 ## Resolve the vault
 
@@ -21,7 +21,7 @@ Take the first that answers, then use the literal absolute path (`{vault}` below
 1. The overlay names the vault.
 2. `printenv NOTES_VAULT`.
 3. `command -v ledger` succeeds: `ledger paths --json`, key `source_notes_dir`.
-4. Ask the user once for the vault path, and suggest saving it to `~/.config/agent-skills/cj-notes.md` so the question never comes back.
+4. Ask the user once for the vault path, and suggest saving it to `~/.config/cj-skills/cj-notes.md` so the question never comes back.
 
 Read `{vault}/AGENTS.md` before the first write if it exists; it holds the vault's own folder and naming rules. Run commands with absolute paths from the current directory rather than `cd {vault} && <write>`.
 
