@@ -53,6 +53,8 @@ Never overwrite an existing good file. If a check says ALREADY OK, skip it.
 Write `.github/workflows/ci.yml` adapted from the template for the stack.
 Keep it minimal — lint + test + build for the repo's ACTUAL stack. Substitute
 the real package/source path (the templates below use placeholders). Don't invent heavy CI.
+When a clone of `yaams` or `owa-tools` sits under the code root, its CI is the
+reference for Python; the overlay may name reference repos for other stacks.
 
 **Python**:
 ```yaml

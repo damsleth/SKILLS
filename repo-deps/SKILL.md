@@ -96,3 +96,8 @@ Do this ONE repo at a time, highest priority first. For each repo:
   a repo. All writes happen here, interactively, under the tier matrix above.
 - `npm outdated` without an installed `node_modules` returns sparse results;
   `npm audit --package-lock-only` still finds vulnerabilities from the lockfile.
+- Schedule: when a monthly launchd job is set up, it runs `python3 <skill-dir>/repo-deps.py --analysis`.
+  The script prepends `/opt/homebrew/bin`, `~/.local/bin` and the fnm default
+  node bin to PATH, since launchd starts with a bare one.
+- `pip-audit` on a repo with many extras (e.g. `yaams`) takes about 5 minutes;
+  its timeout is a flat 600 s.

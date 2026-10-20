@@ -10,9 +10,10 @@ research the attendees, and write clean markdown notes, grounded in a live
 transcript captured from Microsoft Teams live captions.
 
 **Language.** All user-facing output, and the notes themselves, follow the
-language the user invoked the skill in. If that is ambiguous, ask once and keep
-it for the session. The prompts quoted below are examples; say them in the
-user's language. Code and logs stay in English.
+language the user invoked the skill in. If that is ambiguous, use Norwegian
+(Bokmål) without asking, unless the overlay names another default, and keep it
+for the session. The prompts quoted below are examples; say them in the user's
+language. Code and logs stay in English.
 
 ## Local overlay
 
@@ -196,7 +197,9 @@ there to create a new template.
 ### Location
 
 Ask where to save, offering `$MEETING_NOTES_DIR` (or the current directory) as
-the default. Filename: `YYYY-MM-DD-<title>.md`, the title lowercased with
+the default. In a vault with per-customer folders (`02-work/<client>/`, see
+cj-notes' question playbook), suggest the folder matching the meeting's
+profile and client. Filename: `YYYY-MM-DD-<title>.md`, the title lowercased with
 hyphens and no special characters.
 
 The live transcript goes in a **second file beside it**, same stem plus
@@ -279,10 +282,11 @@ Only the user can turn captions on. Ask them to:
 3. Set **Language and speech** → **Spoken language** to the language the meeting
    is actually in.
 
-Give the menu labels in the language of the user's **Teams UI**, which may
-differ from the conversation language. For a non-English Teams UI, pass the
-caption panel's localised accessibility name with `--anchor` (default
-`Live Captions`).
+Give the menu labels in the language of the user's **Teams UI**, which is often
+English even when the conversation is Norwegian. A Norwegian UI reads
+**... Mer** → **Språk og tale** → **Slå på live teksting**. For a non-English
+Teams UI, pass the caption panel's localised accessibility name with `--anchor`
+(default `Live Captions`).
 
 **Ask the spoken language for every meeting.** Teams keeps whatever was set
 last, and speech captioned in the wrong language comes out as gibberish. When
@@ -361,7 +365,8 @@ meeting. Lines look like:
 
 - **In a hybrid meeting the room is one speaker.** Everyone physically present
   is captioned under the room device's name; only remote participants get their
-  own. Ask the user who said what when it matters.
+  own. Ask the user who said what when it matters. The user appears under their
+  directory display name, often `Last, First`.
 - **Captions are evidence, never quotable text.** Live ASR mangles names,
   numbers, acronyms and words from a second language. Where the transcript and
   the user disagree, the user wins.
@@ -400,14 +405,25 @@ it. Without Screen Recording permission macOS returns only the wallpaper.
 If the cj-voice-dna skill is installed, load it before the first write to disk
 and keep applying it to every append and to all of Phase 6.
 
-Punctuate with an en-dash (`–`), a comma, a colon or parentheses, and check the
-text for em-dashes (`—`) before writing it: the em-dash is the most obvious tell
-of machine-written text.
+Punctuate with a spaced en-dash (` – `), a comma, a colon or parentheses, and
+check the text for em-dashes (`—`) before writing it: the em-dash is the most
+obvious tell of machine-written text. The rule holds even when cj-voice-dna
+fails to load.
 
 - Past tense for what was said and decided ("Ola presented...", "It was decided that...")
 - Decisions: **Decision:** ...
 - Action items: **Action:** [who], [what], due [date]
+- Material taken only from captions and not confirmed by the user: mark it
+  `(ASR, unconfirmed)`
 - Keep attributions where relevant
+
+Norwegian notes use the headings of `templates/standard.md` (`**Dato:**`,
+`**Tid:**`, `**Sted:**`, `**Deltakere:**` with `intern`/`ekstern`,
+`## Deltakerbakgrunn`, `## Møtenotater`, `## Oppsummering`, `## Beslutninger`,
+`## Aksjonspunkter` with `# | Ansvarlig | Oppgave | Frist`, `## Neste steg`)
+and these markers: `**Møtet startet:**`, `**Møtet avsluttet:**`,
+`**Beslutning:**`, `**Aksjon:** [Hvem], [Hva], frist [Frist]`,
+`(ASR, ikke bekreftet)`.
 
 ### Without captions
 
@@ -419,7 +435,7 @@ Every other phase is unchanged.
 
 ## Phase 6: Wrap-up
 
-When the user says the meeting is over:
+When the user says the meeting is over ("møtet er ferdig", or equivalent):
 
 ### 0. Gather the sources
 
@@ -506,7 +522,7 @@ are the record. Keep it only if the user asked for that before wrap-up.
   rewriting the whole file. The transcript file belongs to `teams-captions.py`.
 - **Context:** keep the participant research active all meeting to resolve
   pronouns and company mentions.
-- **Timestamps:** the user's local time.
+- **Timestamps:** the user's local time (Europe/Oslo unless the overlay says otherwise).
 - **Tone:** professional, approachable, short sentences.
 - **Ambiguity:** ask a clarifying question when a note is ambiguous; resolve it
   silently when context makes it obvious.

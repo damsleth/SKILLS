@@ -43,15 +43,19 @@ Ask only the high-value questions below that the input leaves open, then write o
 
 ## Folder routing
 
-The overlay or `{vault}/AGENTS.md` names the vault's folders; otherwise read the top-level folders and map them to these roles:
+The overlay or `{vault}/AGENTS.md` names the vault's folders; otherwise read the top-level folders and map them to these roles. The default layout uses numbered folders, so topic folders sort first and system folders last:
 
-- Personal and home topics
-- Work topics, one subfolder per customer or employer when the vault has them
-- Development topics
-- Daily journal: dated events only
-- Agent and tool logs, kept out of the journal
-- Plans under discussion
-- Temporary scratch
+| Role | Default folder |
+|---|---|
+| Temporary scratch | `00-tmp/` |
+| Personal and home topics | `01-home/` |
+| Work topics, one subfolder per customer or employer | `02-work/<customer>/` |
+| Development topics | `04-dev/` |
+| Daily journal: dated events only (week notes `YYYY-Www.md` sit beside the dailies) | `90-journal/` |
+| Agent and tool logs, one `YYYY-MM-DD.md` per day, kept out of the journal | `93-log/` |
+| Plans under discussion | `95-plans/` |
+
+Other top-level folders (a volunteer organisation, an archive) follow the same numbering; read them off the vault.
 
 Durable reasoning goes in a running note under the topic folder, not in the dated journal entry (see *Where things go* in SKILL.md). When the destination is ambiguous, propose one folder and ask once.
 
