@@ -36,13 +36,13 @@ scripts directory, an inbox, cron/launchd entries, the Things database — do th
 a draft trace to the conversation. A trace you derived and they corrected beats a trace they had
 to write from memory.
 
-For a dev workflow, the observable trace lives in: `~/.zsh_history` (repeated multi-step
-sequences, retries after typos), `git log` across `~/code/*` (WIP commits, amend-and-force-push,
+For a dev workflow, the observable trace lives in: shell history (`~/.zsh_history`, `~/.bash_history`: repeated multi-step
+sequences, retries after typos), `git log` across the repos under the code root (`~/code/*`: WIP commits, amend-and-force-push,
 revert patterns), dotfiles (aliases and functions that already exist or are dead), per-repo
 `Makefile` / `justfile` / `package.json` scripts / `AGENTS.md`, and what is already on PATH. State
 the sample (e.g. "last 30 days of history, last 50 commits"). History holds secrets: summarize
-patterns and redact any token or credential you see; recommend deleting that line from
-`~/.zsh_history` and moving the value into a secret manager.
+patterns and redact any token or credential you see; recommend deleting that line from the
+history file and moving the value into a secret manager.
 
 ## Rule one: classify what the human is actually doing
 
@@ -122,7 +122,7 @@ Risk: [only if there is one]
 Order findings by leverage, not by step number.
 
 When the fix is code (an alias, a zsh function, a `just` recipe), put it in the finding
-copy-pasteable and `zsh -n`-checked. The smallest form wins: alias, then function, then script,
+copy-pasteable and syntax-checked (`zsh -n` / `bash -n`). The smallest form wins: alias, then function, then script,
 then a target in the repo's existing `Makefile` / `justfile`, then a new tool.
 
 ## Anti-patterns
@@ -139,18 +139,22 @@ then a target in the repo's existing `Makefile` / `justfile`, then a new tool.
 
 ## Notes for this setup
 
-The user has substantial existing automation surface; check whether a proposal is already
-covered before proposing it:
+Built for macOS + zsh. Before proposing anything, check which of these already exist
+(`command -v`, `launchctl list`, the installed skills); a finding that wires them together beats
+one that needs a new repo:
 
-- `owa-piggy` + `owa-tools` — 16 `owa-*` CLIs over M365 (cal, mail, graph, drive, todo, planner,
-  sites, teams, places, people, sched, ado, vids). Auth needs no app registration. JSON by
-  default, so they pipe. See the `cj-owa-tools` skill.
-- `things3-cli` (`things`) — read/write access to Things 3, including a JSON mode.
-- `teaminal` — Teams TUI.
-- launchd is the established scheduler here (owa-piggy already uses it), not cron.
-- Existing `cj-*` skills cover daily notes, meetings, weekly review, blogging, and voice.
-- Shell is zsh on macOS. Record a rejected proposal in the ledger via `/cj-notes`, and check the
-  ledger before re-pitching one; re-pitch only with new evidence.
+- `owa-piggy` + `owa-tools`: 20 `owa-*` CLIs over Microsoft 365 (cal, mail, graph, drive, todo,
+  planner, sites, teams, places, people, sched, ado, vids, ...). No app registration, JSON by
+  default, so they pipe. See the cj-owa-tools skill.
+- `things` (things3-cli): read/write Things 3, with a JSON mode. See cj-things.
+- `now`: one read-only view of open work across `.plans/`, Things, ADO and ledger loops. See cj-now.
+- `todo`: repo-scoped todos and plans. See cj-todo.
+- `yaams` (raw recall over mail, chat, calendar) and `ledger` (the cognitive ledger: curated
+  facts, decisions, open loops).
+- `teaminal`: Teams in the terminal.
+- launchd, not cron, for new schedules on macOS (owa-piggy already uses it).
+- Skills for daily notes (cj-daily), capture (cj-notes), meetings (cj-meetings) and voice
+  (cj-voice-dna).
 
-Prefer wiring these together over building anything new. A proposal that is three existing CLIs
-in a pipe is a better finding than one that needs a new repo.
+Record a rejected proposal in the ledger (through cj-notes) when it is installed, and check there
+before pitching it again. Re-pitch only with new evidence.
