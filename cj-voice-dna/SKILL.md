@@ -189,4 +189,4 @@ Small incremental updates beat recalibration.
 
 ## Composing with other skills
 
-Skills that produce text for others to read load this skill first and name the register they write in. The private `cj-blog-damsleth-no` skill writes in `blog`.
+Skills that produce text for others to read load this skill first and name the register they write in. Blog posts written with any available blog-writing skill use `blog`.
