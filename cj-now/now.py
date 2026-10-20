@@ -10,17 +10,15 @@ drift. Three adapters read their source on demand:
   ado     owa-ado wi --agent --mine                    (network, cached)
   loops   ledger loops --json                          (local files, instant)
 
-Everything is keyed on the owa-piggy profile (une / nc / swon / brkh / dno),
-which is the one axis all three sources share.
+Everything is keyed on the owa-piggy profile, which is the one axis all
+the sources share.
 
   now                      open work, grouped by profile
   now -v                   same, with ids and age
-  now --profile une        one profile
+  now --profile work       one profile
   now --source plans       one source
-  now --all                include non-work areas (brkh, dno, fdep)
+  now --all                include profiles the config does not mark as work
   now --agent              JSON for machines
-
-ponytail: no config file until the baked-in mappings actually stop fitting.
 """
 
 from __future__ import annotations
@@ -54,26 +52,22 @@ WORK_PROFILES: set[str] = set()
 REPO_PROFILES: list[tuple[str, str]] = []
 AREA_PROFILES: dict[str, str] = {}
 REPO_FALLBACK = "local"
-# owa-ado is configured against exactly one owa-piggy profile, so every work
-# item it returns belongs to that one.
-ADO_PROFILE = "work"
 
 
 def load_config() -> None:
     """Fold ~/.config/cj-now/config.json over the built-in defaults."""
-    global WORK_PROFILES, REPO_PROFILES, AREA_PROFILES, REPO_FALLBACK, ADO_PROFILE
+    global WORK_PROFILES, REPO_PROFILES, AREA_PROFILES, REPO_FALLBACK
     try:
         cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         if CONFIG_PATH.exists():
-            WARNINGS.append(f"config: {CONFIG_PATH} ignorert, {type(e).__name__}")
+            WARNINGS.append(f"config: {CONFIG_PATH} ignored, {type(e).__name__}")
         return
     WORK_PROFILES = set(cfg.get("work_profiles") or [])
     # A list of pairs, not a dict: first match wins, so order is meaning.
     REPO_PROFILES = [tuple(pair) for pair in cfg.get("repo_profiles") or []]
     AREA_PROFILES = dict(cfg.get("area_profiles") or {})
     REPO_FALLBACK = cfg.get("fallback_profile") or REPO_FALLBACK
-    ADO_PROFILE = cfg.get("ado_profile") or ADO_PROFILE
 
 
 SOURCES = ("plans", "things", "ado", "loops")
@@ -205,7 +199,7 @@ def adapter_plans(roots: list[Path]) -> list[dict]:
     out = []
     for plans_dir in roots:
         repo = plans_dir.parent
-        name = repo.name if repo != HOME / "brain" else "global"
+        name = "global" if plans_dir == global_todo_dir() else repo.name
         profile = profile_for_repo(repo)
 
         todo_file = plans_dir / "TODO.md"
@@ -360,64 +354,96 @@ def _wi_url(w: dict) -> str | None:
     return f"{m.group(1)}/_workitems/edit/{m.group(2)}" if m else api or None
 
 
-def adapter_ado(no_cache: bool = False) -> list[dict]:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache = CACHE_DIR / "ado.json"
-    payload = None
+def ado_profiles() -> list[tuple[str, str | None]]:
+    """(profile, org) for every owa-piggy profile with the ADO service.
 
+    The org is read off the profile's devops client capture url
+    (https://dev.azure.com/<org>/...); None leaves it to owa-ado's config.
+    """
+    try:
+        profiles = json.loads(run(["owa-piggy", "profiles", "--json"], timeout=15) or "{}")
+    except json.JSONDecodeError:
+        return []
+    out = []
+    for prof in profiles.get("profiles", []):
+        if "ado" not in (prof.get("services") or []):
+            continue
+        alias, org = prof["alias"], None
+        try:
+            clients = json.loads(
+                run(["owa-piggy", "clients", "--profile", alias, "--json"], timeout=15) or "{}"
+            ).get("clients", [])
+        except json.JSONDecodeError:
+            clients = []
+        for c in clients:
+            m = re.match(r"https://dev\.azure\.com/([^/?#]+)", c.get("capture_url") or "")
+            if c.get("name") == "devops" and m:
+                org = m.group(1)
+        out.append((alias, org))
+    return out
+
+
+def _ado_payload(profile: str, org: str | None, no_cache: bool) -> dict | None:
+    """One profile's `owa-ado wi --mine`, served from a 15 min cache."""
+    cache = CACHE_DIR / f"ado-{profile}.json"
     if not no_cache and cache.is_file() and time.time() - cache.stat().st_mtime < ADO_TTL:
+        try:
+            return json.loads(cache.read_text())
+        except (OSError, json.JSONDecodeError):
+            pass
+    cmd = ["owa-ado", "--profile", profile] + (["--org", org] if org else [])
+    raw = run(cmd + ["wi", "--agent", "--mine", "--top", "200"], timeout=90)
+    if raw:
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        try:
+            cache.write_text(json.dumps(payload))
+        except OSError:
+            pass
+        return payload
+    # Network or auth is down. Serve whatever we last had rather than
+    # silently dropping a whole source from the view.
+    if cache.is_file():
         try:
             payload = json.loads(cache.read_text())
         except (OSError, json.JSONDecodeError):
-            payload = None
+            return None
+        stale = int((time.time() - cache.stat().st_mtime) / 60)
+        WARNINGS.append(f"ado[{profile}]: using cache, {stale} min old")
+        return payload
+    WARNINGS.append(f"ado[{profile}]: no data and no cache, run `owa-piggy reseed --profile {profile}`")
+    return None
 
-    if payload is None:
-        raw = run(["owa-ado", "wi", "--agent", "--mine", "--top", "200"], timeout=90)
-        if not raw:
-            # Network or auth is down. Serve whatever we last had rather than
-            # silently dropping a whole source from the view.
-            if cache.is_file():
-                try:
-                    payload = json.loads(cache.read_text())
-                    stale = int((time.time() - cache.stat().st_mtime) / 60)
-                    WARNINGS.append(f"ado: bruker cache, {stale} min gammel")
-                except (OSError, json.JSONDecodeError):
-                    return []
-            else:
-                WARNINGS.append("ado: ingen data og ingen cache, kjør `owa-piggy reseed --profile nc`")
-                return []
-        else:
-            try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                return []
-            try:
-                cache.write_text(json.dumps(payload))
-            except OSError:
-                pass
 
+def adapter_ado(no_cache: bool = False) -> list[dict]:
+    """Work items assigned to me, from every profile with the ADO service."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     out = []
-    for w in payload.get("data", []):
-        state = (w.get("state") or "").lower()
-        # Resolved is not Closed: it means fixed but still sitting on the board
-        # waiting to be verified and closed. That is exactly the item that needs
-        # a last push, so it stays in the view.
-        if state in ("closed", "removed", "done"):
-            continue
-        out.append(
-            item(
-                id=f"ado:{w.get('id')}",
-                source="ado",
-                title=w.get("title", ""),
-                profile=ADO_PROFILE,
-                status=state or "unknown",
-                updated=iso(w.get("changed")),
-                url=_wi_url(w),
-                wi_type=w.get("type"),
-                area=w.get("area"),
-                iteration=w.get("iteration"),
+    for profile, org in ado_profiles():
+        payload = _ado_payload(profile, org, no_cache) or {}
+        for w in payload.get("data", []):
+            state = (w.get("state") or "").lower()
+            # Resolved is not Closed: it means fixed but still sitting on the board
+            # waiting to be verified and closed. That is exactly the item that needs
+            # a last push, so it stays in the view.
+            if state in ("closed", "removed", "done"):
+                continue
+            out.append(
+                item(
+                    id=f"ado:{w.get('id')}",
+                    source="ado",
+                    title=w.get("title", ""),
+                    profile=profile,
+                    status=state or "unknown",
+                    updated=iso(w.get("changed")),
+                    url=_wi_url(w),
+                    wi_type=w.get("type"),
+                    area=w.get("area"),
+                    iteration=w.get("iteration"),
+                )
             )
-        )
     return out
 
 
@@ -491,7 +517,7 @@ def render_table(items: list[dict], color: bool, limit: int | None, verbose: boo
     lines = []
 
     if not items:
-        lines.append("ingenting åpent.")
+        lines.append("nothing open.")
 
     by_profile: dict[str, list[dict]] = {}
     for rec in items:
@@ -526,7 +552,7 @@ def render_table(items: list[dict], color: bool, limit: int | None, verbose: boo
             head = f"{cid:<{w_id}}  " if verbose else ""
             lines.append(f"  {head}{d}{status:<{w_st}}{r}  {title}  {d}{when}{r}".rstrip())
         if len(rows) > len(shown):
-            lines.append(f"  {d}… +{len(rows) - len(shown)} flere (--full){r}")
+            lines.append(f"  {d}… +{len(rows) - len(shown)} more (--full){r}")
 
     for w in WARNINGS:
         lines.append(f"\n{d}! {w}{r}")
@@ -556,9 +582,22 @@ def render_agent(items: list[dict], sources: list[str]) -> str:
 # ---------------------------------------------------------------- main
 
 
+def global_todo_dir() -> Path | None:
+    """cj-todo's global todo dir (`todo -g`): $TODO_GLOBAL_DIR, else its saved config."""
+    env = os.environ.get("TODO_GLOBAL_DIR")
+    if env:
+        return Path(env).expanduser()
+    conf = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "cj-todo" / "dir"
+    try:
+        line = conf.read_text(encoding="utf-8").strip().splitlines()[0]
+    except (OSError, IndexError):
+        return None
+    return Path(line).expanduser()
+
+
 def find_plans_dirs() -> list[Path]:
     """Every .plans/ up to two levels under ~/code, plus the global one (todo -g)."""
-    roots = {HOME / "brain" / "todos"}
+    roots = {global_todo_dir()} - {None}
     roots.update((HOME / "code").glob("*/.plans"))
     roots.update((HOME / "code").glob("*/*/.plans"))
     return sorted(
@@ -577,14 +616,14 @@ def selfcheck() -> int:
     assert iso("2026-01-01T12:00:00+02:00") == "2026-01-01T10:00:00+00:00"
 
     rows = [
-        item(id="ado:18520", source="ado", title="Payload too large", profile="nc", status="active"),
-        item(id="things:a", source="things", title="WI 18520: payload limit", profile="nc", status="anytime"),
-        item(id="things:b", source="things", title="order 90000001 is missing a tab", profile="nc", status="anytime"),
-        item(id="things:c", source="things", title="WI 18520 in another profile", profile="une", status="anytime"),
-        item(id="things:d", source="things", title="case 118520 is unrelated", profile="nc", status="anytime"),
-        item(id="plans:x", source="plans", title="Payload-plan", profile="nc", status="plan",
+        item(id="ado:18520", source="ado", title="Payload too large", profile="work", status="active"),
+        item(id="things:a", source="things", title="WI 18520: payload limit", profile="work", status="anytime"),
+        item(id="things:b", source="things", title="order 90000001 is missing a tab", profile="work", status="anytime"),
+        item(id="things:c", source="things", title="WI 18520 in another profile", profile="client", status="anytime"),
+        item(id="things:d", source="things", title="case 118520 is unrelated", profile="work", status="anytime"),
+        item(id="plans:x", source="plans", title="Payload-plan", profile="work", status="plan",
              ado_ids=["18520"], kind="plan"),
-        item(id="plans:y", source="plans", title="Urelatert plan", profile="nc", status="plan",
+        item(id="plans:y", source="plans", title="Unrelated plan", profile="work", status="plan",
              ado_ids=["99999"], kind="plan"),
     ]
     assert mark_dupes(rows) == 1, "only the Things sub-step is marked"
@@ -603,7 +642,7 @@ def main() -> int:
         prog="now",
         description="One canonical view of what is open, across .plans, Things and ADO.",
     )
-    ap.add_argument("--profile", "-p", help="only this profile (une, nc, swon, brkh, dno)")
+    ap.add_argument("--profile", "-p", help="only this profile (see `owa-piggy profiles`)")
     ap.add_argument("--source", "-s", choices=SOURCES, action="append", help="repeatable")
     ap.add_argument("--all", "-a", action="store_true", help="include non-work profiles")
     ap.add_argument("--agent", action="store_true", help="JSON output for machines")
@@ -636,10 +675,10 @@ def main() -> int:
         items = [i for i in items if i["profile"] == args.profile.lower()]
     elif not (args.all or args.grep):
         # Naming a needle means look everywhere. Restricting a search to the
-        # work profiles made `now --grep brygga` answer "ingenting åpent" while
-        # the row sat in dno, and every documented search had to carry
-        # --full --all to work at all.
-        # Global todos (~/brain/todos, `todo -g`) are cross-cutting like loops:
+        # work profiles made `now --grep <word>` answer "nothing open" while the
+        # row sat in a personal profile, and every documented search had to
+        # carry --full --all to work at all.
+        # Global todos (`todo -g`) are cross-cutting like loops:
         # the work-profile filter never hides them either.
         items = [i for i in items if not WORK_PROFILES or i["profile"] in WORK_PROFILES
                  or i["source"] == "loops" or i.get("repo") == "global"]
@@ -656,8 +695,8 @@ def main() -> int:
     if not (args.full or args.upcoming or args.grep):
         # A Things task earns a place here by having a deadline, sitting in
         # Today, or duplicating a work item. Anything/Someday with no date is a
-        # backlog Kim keeps in Things on purpose, and 90+ of them buried the
-        # work items under NC.
+        # backlog the user keeps in Things on purpose, and 90+ of them buried
+        # the work items.
         items = [
             i for i in items
             if i["source"] != "things"
