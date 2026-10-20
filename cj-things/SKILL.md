@@ -1,6 +1,6 @@
 ---
 name: cj-things
-description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or needs the Things-only detail (logbook, tags, queries) that the cross-surface view leaves out. For "what's open" across plans, Things and ADO, use cj-now instead. Pairs with cj-notes to turn captured notes into real tasks.
+description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or needs the Things-only detail (logbook, tags, queries) that the cross-surface view leaves out. For what's open across relevant task surfaces, use cj-now instead. Pairs with cj-notes to turn captured notes into real tasks.
 ---
 
 # cj-things
@@ -8,10 +8,9 @@ description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the
 ## Overview
 
 `things` is a macOS CLI for [Things 3](https://culturedcode.com/things/) by Cultured Code.
-The binary on PATH is **Kim's fork**: `~/.local/bin/things` →
-`~/code/things3-cli` ([damsleth/things3-cli](https://github.com/damsleth/things3-cli),
-forked from [ossianhempel/things3-cli](https://github.com/ossianhempel/things3-cli)).
-The fork adds field-clearing via empty flag values — upstream silently drops them.
+Use the [damsleth/things3-cli](https://github.com/damsleth/things3-cli) fork of
+[ossianhempel/things3-cli](https://github.com/ossianhempel/things3-cli): it adds
+field-clearing via empty flag values, which upstream silently drops.
 
 It talks to the app three ways, which is what decides whether a command needs setup:
 
@@ -29,7 +28,7 @@ macOS only. Run `things help <command>` for the authoritative flag list, or read
 ## Boot
 
 ```bash
-command -v things        # expect ~/.local/bin/things → ~/code/things3-cli (the fork)
+command -v things        # the fork, installed from damsleth/things3-cli
 things --version         # CLI + detected Things.app version
 things auth              # token status — required only for `update*`
 ```
@@ -185,8 +184,8 @@ This skill is the single front door to Things **writes** for the rest of the sui
 the Things-only reads `now` doesn't carry.
 
 - **cj-now** is where the planning skills read from. `now` merges `things all --json` with
-  repo `.plans/` and ADO work items, so `cj-daily`, `cj-weekly-review` and `cj-notes` call
-  `now --agent`, not `things today`/`upcoming`/`deadlines`. Come here for the rest:
+  repo `.plans/` and ADO work items, so planning skills (cj-daily, cj-notes, a weekly review)
+  call `now --agent` when it is installed, not `things today`/`upcoming`/`deadlines`. Come here for the rest:
   the logbook (`things logtoday` / `logbook` — `now` excludes completed work by design),
   tag/query filters, `things areas --json` for a `--list-id`, and every mutation.
   Deferred work is `now --upcoming`, not `things upcoming`.
