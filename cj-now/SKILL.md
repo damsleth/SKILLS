@@ -1,6 +1,6 @@
 ---
 name: cj-now
-description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "hva er aktuelt nå", "hva jobber jeg med", "vis alle oppgaver", "status på tvers", "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only — it never writes to any source.
+description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "what's open", "what am I working on", "show all tasks", "status across everything" (or "hva er aktuelt nå", "hva jobber jeg med"), "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only — it never writes to any source.
 ---
 
 # cj-now
@@ -11,13 +11,13 @@ store. Nothing is written and nothing is synced, so nothing can drift.
 ```
 now                     open work, grouped by profile, 10 rows each
 now -v                  same, with ids and age (--verbose)
-now --profile une       one profile, uncapped
+now --profile work      one profile, uncapped
 now --source plans      one source (plans | things | ado), repeatable
 now --grep 18520        search title and id, every profile, unfiltered
 now --full              no row cap, and no Things relevance filter
 now --dupes             only Things rows that name an ADO work item (personal sub-steps)
 now --upcoming          only Things tasks scheduled to start later
-now --all               include non-work profiles (brkh, dno, fdep)
+now --all               include profiles the config does not mark as work
 now --agent             JSON, owa-suite envelope
 now --no-cache          force a fresh ADO fetch
 ```
@@ -27,7 +27,7 @@ now --no-cache          force a fresh ADO fetch
 `idea` does for `~/code/dev-ideas` what `now` does for work: no args lists every
 idea (title, status, tagline from `ideas/*/README.md`, retired hidden, `-a` to
 show) plus the repo's open todos; `idea <text>` captures a new one with
-`todo add` in that repo. `brain ideas` calls it. `DEV_IDEAS` overrides the path.
+`todo add` in that repo. `DEV_IDEAS` overrides the path.
 
 ## Sources
 
@@ -35,14 +35,17 @@ show) plus the repo's open todos; `idea <text>` captures a new one with
 | --- | --- | --- | --- |
 | `plans` | `<repo>/.plans/TODO.md` + `<repo>/.plans/*.md` | filesystem | repo work, 1:1 with a git repo; `ado:` frontmatter links a plan to its work item |
 | `things` | `things all --json` | local sqlite | personal tasks, human-owned |
-| `ado` | `owa-ado wi --agent --mine` | network, cached 15 min | team work items, **not yours** |
+| `ado` | `owa-ado --profile <p> wi --agent --mine`, per ADO profile | network, cached 15 min per profile | team work items, **not yours** |
 | `loops` | `ledger loops --json` | local files | open loops from the cognitive ledger; profile is the loop's `scope` (work / personal / dev / meta) and the work-profile filter never hides them |
 
 Each source stays authoritative for its own domain. `now` never reconciles them
 and never picks a winner.
 
-The ADO adapter is a plain passthrough to `owa-ado wi --mine`, which follows
-assignment across every project in the organisation. It used to carry its own
+The ADO adapter runs `owa-ado wi --mine` once for every owa-piggy profile with
+the `ado` service (`owa-piggy profiles --json`), passing `--org` from that
+profile's devops client capture url (`https://dev.azure.com/<org>/...`). Each
+work item is tagged with the profile it came from. `--mine` follows assignment
+across every project in the organisation. It used to carry its own
 cross-project WIQL, because `--mine` was pinned to the single project in
 `~/.config/owa-ado/config` and hid everything else. That belonged one layer
 down and was fixed in owa-ado, so `now` no longer knows anything about how ADO
@@ -58,13 +61,12 @@ A repo, an ADO project and a Things area all map to one owa-piggy profile. That
 is the only axis all three share, and it is what makes a merged list coherent.
 
 The mappings are personal wiring, not tool logic, so they live in
-`~/.config/cj-now/config.json` (stowed from `dotfiles-private/cj-now/`):
+`~/.config/cj-now/config.json`:
 
 ```json
 {
   "work_profiles":    ["acme", "acme-misc"],
   "fallback_profile": "personal",
-  "ado_profile":      "acme",
   "repo_profiles":    [["code/acme/api/", "acme"], ["code/acme/", "acme-misc"]],
   "area_profiles":    {"ACME": "acme"}
 }
@@ -72,11 +74,11 @@ The mappings are personal wiring, not tool logic, so they live in
 
 `repo_profiles` is a list of pairs rather than an object because first match
 wins, so order carries meaning: put the specific prefixes above the general
-ones. `ado_profile` is the single profile `owa-ado` is configured against.
+ones.
 
 With no config file every profile counts as work and every repo falls back to
 `local`, so the tool runs anywhere. Nothing here knows a customer name: the ADO
-organisation is read off the work item urls that `owa-ado` already returns.
+organisation is read off each ADO profile's devops client in owa-piggy.
 
 ## Reading the output
 
@@ -96,7 +98,7 @@ the relevance filter, since that filter is precisely what hides deferred work,
 and leads each row with the date the task arrives.
 
 A Things task shows up only if it has a deadline, sits in Today, or duplicates
-an ADO work item. Anything and Someday with no date is backlog Kim keeps in
+an ADO work item. Anything and Someday with no date is backlog the user keeps in
 Things on purpose, and it used to bury the work items. `--full` brings it back.
 
 A `.plans/` directory is a document library as much as a task list, so the same
@@ -113,9 +115,9 @@ than a problem to work around. Scope with `--profile` or the default work view;
 reaching for `--source things` to control size silently drops ADO and plans.
 
 `⧉` marks a Things row whose title names an ADO work item also in the list.
-By convention (2026-10-08) such a task is a **personal sub-step** of that work
+By convention such a task is a **personal sub-step** of that work
 item, never a copy of it: the work item holds the status, the Things task holds
-what Kim does next about it. So the mark is a view, not a warning, and there is
+what the user does next about it. So the mark is a view, not a warning, and there is
 no footer nag. A `.plans/` file naming its work item is not marked at all: that
 is where the reasoning lives, and the duplication is intended.
 
@@ -147,7 +149,7 @@ and close the stale side.
 - After finishing work, close it in the source that owns it, not here.
 - **Writes and the logbook live in the source skill.** Creating, completing or
   editing a Things task, and any completed-work view, is `cj-things`; a work
-  item is `cj-owa-ado`; a plan or todo line is `cj-todo`; a loop is `cj-notes`.
+  item is `owa-ado` (or the cj-owa-ado skill, if installed); a plan or todo line is `cj-todo`; a loop is `cj-notes`.
 
 ## Deliberately not built
 
