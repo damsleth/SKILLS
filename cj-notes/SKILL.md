@@ -80,6 +80,10 @@ When the user asks an investigative question mid-capture ("why is X missing?") t
 
 Only in `notes+ledger` or `ledger-only`, and only when `ledger` is installed. Distill atomic items; never copy the note body. See *Ledger sync*.
 
+For corrections, recurring mistakes, and session wrap-ups, first use
+[lesson routing](references/lesson-routing.md). Finish when each lesson has
+one destination and an evidence reference; persist only the memory branch.
+
 ### 6. Report
 
 List the files changed and any unresolved question that blocked a full sync. "Logged." is enough when the context is obvious.
