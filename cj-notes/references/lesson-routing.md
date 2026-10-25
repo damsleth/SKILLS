@@ -7,7 +7,7 @@ the relevant procedure or code first.
 | Lesson | Destination | Completion criterion |
 |---|---|---|
 | Mechanically detectable mistake | `structural_check` | Name the test, lint rule, script, or runtime guard and target |
-| Incorrect skill procedure | `skill` | Identify the skill section and concrete correction |
+| Incorrect skill or agent instruction procedure | `skill` | Identify the SKILL.md, AGENTS.md, or CLAUDE.md section and concrete correction |
 | Durable fact, preference, decision, goal, or definition | `note` | Identify an existing note or the appropriate atomic note type |
 | Unfinished work | `task` | Name a next action and the task system required by the user's routing policy |
 | Temporary, unsupported, or already captured information | `skip` | State why no new artifact is useful |
@@ -30,8 +30,10 @@ Return one object per lesson:
 }
 ```
 
-Evidence is a short source locator, never a transcript. Use logical
-`notes/...` identifiers for ledger notes. For `skip`, the target may be null.
+Evidence is a short source locator, never a transcript. Existing note targets
+must be verified logical `notes/...` identifiers. For new notes use
+`new:<type>` (`fact`, `pref`, `loop`, `concept`, `goal`, `id`); let
+`ledger notes add` choose the filename and folder. For `skip`, the target may be null.
 State uncertainty instead of inventing evidence.
 
 Apply changes within the user's authorised scope. Otherwise leave a concrete
