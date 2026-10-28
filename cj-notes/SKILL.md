@@ -33,6 +33,8 @@ Read `{vault}/AGENTS.md` before the first write if it exists; it holds the vault
 
 A durable signal is a stable preference, a decision or commitment, a reusable fact about a person, project or system, an open loop with a concrete next action, a goal, or a definition. Names, projects, tools and events in the text are not signals by themselves; "I talked with X", activity logs, topic lists and transient troubleshooting stay in the note.
 
+**People and projects have a lower bar.** When the ledger has hubs (`ledger people --help` succeeds), any small observation about a specific person ("prefers SMS", "took over vakt in November", "is on parental leave from March") or a notable event in a multi-week project is worth one log line on that hub, even in `notes-only` mode and even when nothing else in the input qualifies. Small is the point: these facts are what an LLM drops for lack of signal. See *People and project hubs*.
+
 ## Where things go
 
 Decide first whether you hold a dated event or durable reasoning. They go to different files, and reasoning written into a dated file is how a journal rots into a project tracker.
@@ -136,6 +138,8 @@ ledger init --ledger-notes-dir <dir> --source-notes-dir <vault>
 | Goal or commitment with an outcome | `notes/04_goals/goal__*.md` |
 | Unresolved, revisit later | `notes/05_open_loops/loop__*.md` |
 | Concept or definition ("Let's define…") | `notes/06_concepts/concept__*.md` |
+| Observation about a person who has a hub | one line in `notes/10_people/person__*.md` via `ledger people log` |
+| Event in a multi-week project that has a hub | one line in `notes/07_projects/project__*.md` via `ledger projects log` |
 
 ### Create or update
 
@@ -144,6 +148,17 @@ ledger init --ledger-notes-dir <dir> --source-notes-dir <vault>
 3. Existing note: edit the file, bump `updated`, then log the change (below).
 
 An open loop needs a `status` and a concrete `Next action` checkbox. When `things3_sync_enabled` is on in the ledger config, `ledger loops sync` mirrors loops to Things, routed by scope; set `things_list_id: <area-uuid>` in a loop's frontmatter to route it explicitly (`things areas --json` lists the ids). `scope: work` has no default area and lands in the Things Inbox, so give those loops a `things_list_id`.
+
+### People and project hubs
+
+Only when `ledger people --help` succeeds. A hub is one note per person (`10_people/person__<slug>.md`: Who, Working with them, Log) or per multi-week effort (`07_projects/project__<slug>.md`: Goal, State, Decisions, Log). Identity (names, aliases, emails) stays in yaams; the hub holds what you know.
+
+- Find the hub: `ledger people resolve "<name or alias>"` (prints the slug, exit 1 when none). `ledger people list`, `ledger projects list`.
+- Log an observation, dated when it happened: `ledger people log <slug> --agent --date YYYY-MM-DD "<one line>"`. Same verbs for `ledger projects`.
+- Always pass `--agent` for anything you write; it marks the line `(agent)` until the user reviews it (`ledger unreviewed`, `ledger unreviewed --accept <path>`), so yaams never treats it as human-reviewed.
+- A person with no hub: do not create one on your own. Mention the person once at the end ("Kari Hansen has no hub; create one?"), and on yes run `ledger people add <first_last> --title "<Full Name>" --entity "<yaams canonical>" --sphere <work|brkh|family|friends> --who "<one line>" --agent`.
+- Other notes that are about a person or project get `people: [<slug>]` / `projects: [<slug>]` in their frontmatter, so `ledger people show <slug>` lists them.
+- Sensitive details about others (health, family matters) go inside a private fence or nowhere.
 
 ### Timeline logging
 

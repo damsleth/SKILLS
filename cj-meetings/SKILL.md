@@ -508,7 +508,11 @@ only from the transcript ("From the transcript I included: [X]. Correct?") and
 only from Facilitator ("From Facilitator I included: [Y]. Correct?") so the user
 can confirm or drop it. Refine, then confirm the final file is saved.
 
-### 4. Delete the transcript
+### 4. Log to people and project hubs
+
+When `ledger people --help` succeeds: for each participant with a hub (`ledger people resolve "<name>"`) and something durable from this meeting about them (a role change, a commitment, how they like to work), add one line with the meeting date: `ledger people log <slug> --agent --date YYYY-MM-DD "<observation> (meeting: <title>)"`. Do the same for a project hub when the meeting decided or changed something in it (`ledger projects log`). Skip people with nothing durable; list participants without a hub in one line and ask whether to create any (see cj-notes *People and project hubs*).
+
+### 5. Delete the transcript
 
 Once the user has answered the review, delete the transcript file without asking
 and say so in one line: it is long, verbatim and full of chatter, and the notes
