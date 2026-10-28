@@ -33,7 +33,7 @@ Read `{vault}/AGENTS.md` before the first write if it exists; it holds the vault
 
 A durable signal is a stable preference, a decision or commitment, a reusable fact about a person, project or system, an open loop with a concrete next action, a goal, or a definition. Names, projects, tools and events in the text are not signals by themselves; "I talked with X", activity logs, topic lists and transient troubleshooting stay in the note.
 
-**People and projects have a lower bar.** When the ledger has hubs (`ledger people --help` succeeds), any small observation about a specific person ("prefers SMS", "took over vakt in November", "is on parental leave from March") or a notable event in a multi-week project is worth one log line on that hub, even in `notes-only` mode and even when nothing else in the input qualifies. Small is the point: these facts are what an LLM drops for lack of signal. See *People and project hubs*.
+**People and projects have a lower bar.** When the ledger has hubs (`ledger people --help` succeeds), a small, work-relevant observation about a specific person ("prefers SMS", "took over vakt in November") or a notable event in a multi-week project is worth one log line on that hub, also in the default `notes-only` mode and even when nothing else in the input qualifies. Small is the point: these facts are what an LLM drops for lack of signal. Two limits: when the user explicitly asked for notes only, write nothing to the ledger; and health, family matters, conflicts or anything else sensitive about another person never goes to a hub without the user saying so. See *People and project hubs*.
 
 ## Where things go
 
@@ -158,7 +158,7 @@ Only when `ledger people --help` succeeds. A hub is one note per person (`10_peo
 - Always pass `--agent` for anything you write; it marks the line `(agent)` until the user reviews it (`ledger unreviewed`, `ledger unreviewed --accept <path>`), so yaams never treats it as human-reviewed.
 - A person with no hub: do not create one on your own. Mention the person once at the end ("Kari Hansen has no hub; create one?"), and on yes run `ledger people add <first_last> --title "<Full Name>" --entity "<yaams canonical>" --sphere <work|brkh|family|friends> --who "<one line>" --agent`.
 - Other notes that are about a person or project get `people: [<slug>]` / `projects: [<slug>]` in their frontmatter, so `ledger people show <slug>` lists them.
-- Sensitive details about others (health, family matters) go inside a private fence or nowhere.
+- Sensitive details about others (health, family matters) stay out of hubs; `ledger people log` refuses private-fenced text because a one-line log entry cannot keep a fence.
 
 ### Timeline logging
 
