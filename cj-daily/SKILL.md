@@ -78,7 +78,7 @@ Then route what it leaves for today: an actionable item not tracked anywhere →
 The note holds no task state: no `- [ ]` checkboxes and no copies of open work. Tasks live in their own tools.
 
 - **Sync first:** when `ledger` exists, run `ledger loops sync`. With `things3_sync_enabled: false` in the ledger config it reports "sync disabled" and the run moves on; when it reports actions, the flag was turned on deliberately, so leave it.
-- **Read:** if `now` exists, `now --agent` (load the cj-now skill for `_owa.warnings` and the `⧉` convention). Add `--all` when the day spans the personal areas. Scope only with `--all` or `--profile`: `--source` silently drops ADO and plans. `--full` only when the curated view looks thin. Otherwise, if `things` exists, read today's list per cj-things. Use the result for the spoken briefing only.
+- **Read:** if `now` exists, `now --agent` (load the cj-now skill for `_owa.warnings` and the `⧉` convention); it covers every profile, personal areas included. Scope only with `--profile`: `--source` silently drops ADO and plans. `--full` only when the curated view looks thin. Otherwise, if `things` exists, read today's list per cj-things. Use the result for the spoken briefing only.
 - **Four stores, four jobs:** Azure DevOps holds work items others assign and is authoritative for their status; Things holds the user's own next steps and brain dumps; ledger loops hold reasoning and the ambient todo list agents pick up; repo `.plans/` holds repo-scoped todos and long-form plans.
 - **Things vs ADO:** a Things task never *is* an ADO work item. It may carry an ADO id in its title, and is then a personal sub-step closed on its own terms. Say nothing about `⧉` rows unless a Things task duplicates the work item outright (same title, no personal step): cancel it. Personal sub-steps stay out of ADO, and any ADO comment needs the user's explicit OK.
 - **Exception:** a deadline landing today or tomorrow may appear as a single `🎯` bullet, two at most, because it changes the shape of the day.
@@ -111,7 +111,7 @@ When `yaams` exists:
 
 1. Collect the background ingest from Boot step 0. It takes about 2 minutes (Teams channels dominate); wait up to about 3 before querying the existing index, and say so. Its final `{"type":"result",...}` envelope gives `stats.totals` and per-source `stats.sources.*.new`; `error.failed_sources` lists sources to mention, not block on (a source failing on macOS permissions, such as `imessage`, is routine).
 2. Derive 2–3 themes from the previous note's headline and topic sections, the running notes in play, and today's meeting subjects.
-3. `yaams query "<theme>" --top-k 5 --json` per theme.
+3. `yaams query "<theme>" --top-k 5 --json` per theme. Each hit's title is `subject` and its text is `content_preview` (about 400 chars); there are no `title` or `text` keys. Stdout may start with a progress line, so parse from the first `{`.
 
 When `ledger` exists, read `{ledger}/08_indices/context.md` and run `sheep status`; `ledger briefing` adds open loops near or past due. The index is generated and lags: compare its `Latest source update:` line with `sheep status`, and when sleep is overdue the loop files in `05_open_loops/` win. Verify a loop there before mentioning it. Open-loop counts and sleep status go in the briefing only, never the note; ledger writes go through cj-notes.
 

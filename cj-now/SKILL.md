@@ -18,7 +18,7 @@ now --full              no row cap, and no Things relevance filter
 now --dupes             only Things rows that name an ADO work item (personal sub-steps)
 now --upcoming          only Things tasks scheduled to start later
 now --all               include profiles the config does not mark as work
-now --agent             JSON, owa-suite envelope
+now --agent             JSON, owa-suite envelope, every profile (implies --all)
 now --no-cache          force a fresh ADO fetch
 ```
 
@@ -109,10 +109,10 @@ and `--grep` bring them back.
 
 ## Size
 
-`now --agent` is the work view, around 26 KB. `now --agent --all` adds every
-personal profile and roughly triples that, which is `--all` doing its job rather
-than a problem to work around. Scope with `--profile` or the default work view;
-reaching for `--source things` to control size silently drops ADO and plans.
+`now --agent` always covers every profile (it implies `--all`), around 75 KB;
+the human view without `--all` is the work view, around a third of that. Scope
+with `--profile`; reaching for `--source things` to control size silently drops
+ADO and plans.
 
 `⧉` marks a Things row whose title names an ADO work item also in the list.
 By convention such a task is a **personal sub-step** of that work
