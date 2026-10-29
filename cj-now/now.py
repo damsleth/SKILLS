@@ -645,7 +645,7 @@ def main() -> int:
     ap.add_argument("--profile", "-p", help="only this profile (see `owa-piggy profiles`)")
     ap.add_argument("--source", "-s", choices=SOURCES, action="append", help="repeatable")
     ap.add_argument("--all", "-a", action="store_true", help="include non-work profiles")
-    ap.add_argument("--agent", action="store_true", help="JSON output for machines")
+    ap.add_argument("--agent", action="store_true", help="JSON output for machines; implies --all")
     ap.add_argument("--no-cache", action="store_true", help="force a fresh ADO fetch")
     ap.add_argument("--verbose", "-v", action="store_true", help="show ids and age")
     ap.add_argument("--full", "-f", action="store_true", help="no per-profile row cap")
@@ -657,6 +657,9 @@ def main() -> int:
 
     if args.selfcheck:
         return selfcheck()
+    # Agents dedupe and brief from this; a work-only default hid personal rows from them.
+    if args.agent:
+        args.all = True
 
     load_config()
 
