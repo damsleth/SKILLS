@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX Loop"
+  short_description: "Run the scored shots/review/implement UX loop with @damsleth/ux-loop"
+  default_prompt: "Use $cj-uxloop to run the UX loop (uxl) on this app: capture screenshots, review, apply scoped fixes in a worktree, and report the score change. Set up uxl first if it is not configured."

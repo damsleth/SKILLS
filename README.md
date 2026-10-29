@@ -18,7 +18,7 @@ A collection of public, reusable skills for AI coding agents (Claude Code, Codex
 | **cj-owa-tools** | Judgment layer for the owa-tools M365 CLI suite and owa-piggy auth: install requirements, profile model with `-A` fan-out for reads, audiences, auth recovery. ([owa-tools](https://github.com/damsleth/owa-tools)) |
 | **cj-things** | Manage Things 3 tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the Things-only reads (logbook, tags, queries) that cj-now leaves out. Pairs with cj-notes. ([things3-cli](https://github.com/ossianhempel/things3-cli)) |
 | **cj-todo** | World's most lightweight repo-scoped todo & plan tracker. Bundled `todo` CLI does the CRUD; the skill decides todo-vs-plan and authors plans. |
-| **cj-ux-loop-onboarding** | Install, configure, and operate the @damsleth/ux-loop UX audit pipeline. ([ux-loop](https://github.com/damsleth/ux-loop)) |
+| **cj-uxloop** | Run the UX loop (screenshots, scored critique, safe fixes, CI gate) with @damsleth/ux-loop `uxl`; includes setup. ([ux-loop](https://github.com/damsleth/ux-loop)) |
 | **cj-video-vision** | Watch and analyze videos (local files + YouTube) via the claude-video-vision MCP server — frame extraction, scene/silence/motion analysis, transcription. ([claude-video-vision](https://github.com/damsleth/claude-video-vision)) |
 | **cj-voice-dna** | Pick the register (språkdrakt) and apply your voice profile before drafting: blog, work notes, messages, formal, technical docs (STE) |
 | **repo-deep** | On-demand deep code-quality pass over one repo, orchestrating ponytail-audit and code-review (both optional) plus a test-gap check, then applying only approved fixes. |

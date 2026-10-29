@@ -1,4 +1,4 @@
-# Config and Onboarding Notes
+# Onboarding: config and flow mapping
 
 ## Minimal config skeleton
 
@@ -54,7 +54,7 @@ export default defineUxlConfig({
 
 ## Runner notes
 
-- `review.runner` supports `codex` and `openai`.
+- `review.runner` and `implement.runner` support `codex`, `copilot`, `claude`; `openai` reviews only.
 - OpenAI runner requires a model and API key (`OPENAI_API_KEY` by default).
 - `implement.target` supports `current`, `branch`, and `worktree`.
 
