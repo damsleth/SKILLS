@@ -22,9 +22,9 @@ COMMANDS = {
 # (gpt-6.1-sol over gpt-6-sol, claude-sonnet-5.5 over claude-sonnet-5); claude's bare aliases track it
 # by themselves. Any other -m value passes through as-is.
 TIERS = {
-    "claude": {"light": "sonnet", "medium": "opus", "heavy": "fable"},
-    "codex": {"light": "gpt-6-luna", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
-    "copilot": {"light": "gpt-6-luna", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
+    "claude": {"light": "sonnet", "medium": "opus", "heavy": "mythos"},
+    "codex": {"light": "gpt-6.1-terra", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
+    "copilot": {"light": "gpt-6.1-terra", "medium": "gpt-6.1-sol", "heavy": "gpt-6-astra"},
 }
 
 
