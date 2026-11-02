@@ -151,7 +151,7 @@ def nominate(root, tiers):
 COMMIT_POLICY = {
     "S-priv": "commit + push OK",
     "S-pub": "commit + push OK; releases/tags need approval",
-    "W": "NEW BRANCH + local commits only, user pushes/PRs",
+    "W": "NEW BRANCH + local commits only; user pushes/PRs",
 }
 
 
@@ -187,10 +187,10 @@ def main():
     if not repo.is_dir():
         plan["refuse"] = f"not a directory: {repo}"
     elif tier is None:
-        plan["refuse"] = ("untiered, add it to .repo-tiers.json first "
+        plan["refuse"] = ("untiered; add it to .repo-tiers.json first "
                           "(pick S-priv/S-pub/W); untiered repos are scratch")
     elif tier in REFUSE_TIERS:
-        plan["refuse"] = f"tier {tier}, NEVER deep-pass (report-only / out of scope)"
+        plan["refuse"] = f"tier {tier}: NEVER deep-pass (report-only / out of scope)"
 
     if plan["refuse"] is None:
         plan["stack"] = detect_stack(repo)

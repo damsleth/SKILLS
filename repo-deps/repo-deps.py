@@ -165,7 +165,7 @@ def audit_node(repo, out):
     else:
         pm = "npm"
     if not have(pm):
-        out["notes"].append(f"Node: `{pm}` not installed, skipped")
+        out["notes"].append(f"Node: `{pm}` not installed; skipped")
         return
 
     # outdated (npm/pnpm share --json shape; yarn differs, so best-effort)
@@ -215,7 +215,7 @@ def audit_node(repo, out):
 
 def audit_python(repo, out):
     if not have("uvx"):
-        out["notes"].append("Python: `uvx`/pip-audit not available, deps not audited")
+        out["notes"].append("Python: `uvx`/pip-audit not available; deps not audited")
         _declare_python(repo, out)
         return
 
@@ -229,7 +229,7 @@ def audit_python(repo, out):
         if rc == 0 and os.path.isfile(tmp):
             req = tmp
         else:
-            out["notes"].append("Python: `uv export` failed, deps not audited")
+            out["notes"].append("Python: `uv export` failed; deps not audited")
     elif (repo / "requirements.txt").is_file():
         req = str(repo / "requirements.txt")
 
@@ -281,7 +281,7 @@ def _declare_python(repo, out):
 
 def audit_rust(repo, out):
     if not have("cargo"):
-        out["notes"].append("Rust: `cargo` not installed, skipped")
+        out["notes"].append("Rust: `cargo` not installed; skipped")
         return
     # cargo-audit / cargo-outdated are separate binaries invoked as subcommands.
     if have("cargo-audit"):
@@ -311,14 +311,14 @@ def audit_rust(repo, out):
             except json.JSONDecodeError:
                 pass
     else:
-        out["notes"].append("Rust: `cargo-outdated` not installed, bumps not listed")
+        out["notes"].append("Rust: `cargo-outdated` not installed; bumps not listed")
 
 
 # ── .NET ─────────────────────────────────────────────────────────────────
 
 def audit_dotnet(repo, out):
     if not have("dotnet"):
-        out["notes"].append(".NET: `dotnet` not installed, skipped")
+        out["notes"].append(".NET: `dotnet` not installed; skipped")
         return
     # --outdated and --vulnerable are mutually exclusive on recent SDKs -> two calls.
     for flag, key in (("--vulnerable", "vulns"), ("--outdated", "dotnet_outdated")):
