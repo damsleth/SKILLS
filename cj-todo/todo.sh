@@ -255,7 +255,7 @@ cmd_done() {
       echo "${GREEN}✓${RESET} done: $display"
     fi
   done
-  delete_todo_lines "${todo_lines[@]}"
+  delete_todo_lines ${todo_lines[@]+"${todo_lines[@]}"}
 }
 
 cmd_rm() {
@@ -277,7 +277,7 @@ cmd_rm() {
       echo "${RED}✗${RESET} removed: $display"
     fi
   done
-  delete_todo_lines "${todo_lines[@]}"
+  delete_todo_lines ${todo_lines[@]+"${todo_lines[@]}"}
 }
 
 cmd_log() {
