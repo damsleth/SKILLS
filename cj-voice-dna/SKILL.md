@@ -95,7 +95,7 @@ The profile's `registers.<name>` merges over these. The profile can add new regi
 
 ## Banned phrases
 
-**Dead AI language**: "In today's [anything]...", "It's important to note that..." / "It's worth noting...", "Delve" / "Dive into" / "Unpack", "Harness" / "Leverage" / "Utilize", "Landscape" / "Realm" / "Robust", "Game-changer" / "Cutting-edge", "Straightforward", "I'd be happy to help", "In order to".
+**Dead AI language**: "In today's [anything]...", "It's important to note that..." / "It's worth noting...", "Delve" / "Dive into" / "Unpack", "Harness" / "Leverage" / "Utilize" (as buzzword verbs; "agent harness" is the correct noun), "Landscape" / "Realm" / "Robust", "Game-changer" / "Cutting-edge", "Straightforward", "I'd be happy to help", "In order to".
 
 **Dead transitions**: "Furthermore" / "Additionally" / "Moreover", "Moving forward" / "At the end of the day", "To put this in perspective...", "What makes this particularly interesting is...", "The implications here are...", "In other words...", "It goes without saying...".
 

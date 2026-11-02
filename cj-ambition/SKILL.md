@@ -1,6 +1,6 @@
 ---
 name: cj-ambition
-description: Raise the ambition of the current task along one axis before executing it. Altitude zooms out to the goal beyond the goal, depth goes deeper the way the best in the field would, range brings in other disciplines and assembles the crew. Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", or "/cj-ambition <axis>".
+description: Raise the ambition of the current task along one axis before executing it. Altitude zooms out to the goal beyond the goal, depth goes deeper not bigger (the way the best in the field would), range brings in other disciplines and assembles the crew. Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", or "/cj-ambition <axis>".
 ---
 
 # Ambition
@@ -31,7 +31,7 @@ crash. Creative work resists altitude; leave it alone there.
 
 Done when the rewrite names the outcome, the next action it unlocks, and the loop.
 
-## Depth: the expert's method
+## Depth: deeper, not bigger
 
 Do the task the way a field-leading expert would, touching the raw material and the real
 instruments, until the expert would learn something from the result.

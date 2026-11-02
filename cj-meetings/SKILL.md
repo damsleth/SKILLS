@@ -405,8 +405,8 @@ it. Without Screen Recording permission macOS returns only the wallpaper.
 If the cj-voice-dna skill is installed, load it before the first write to disk
 and keep applying it to every append and to all of Phase 6.
 
-Punctuate with a comma, a colon or parentheses (a spaced en dash ` – ` is
-fine in Norwegian text), and check the text for em dashes (U+2014) before writing it, since the em dash is
+Punctuate with a spaced en dash (` – `), a comma, a colon or parentheses, and
+check the text for em dashes (U+2014) before writing it, since the em dash is
 the most obvious tell of machine-written text. The rule holds even when
 cj-voice-dna fails to load.
 
