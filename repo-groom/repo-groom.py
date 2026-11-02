@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""repo-groom — read-only gap analysis for ONE repo's quality baseline.
+"""repo-groom: read-only gap analysis for ONE repo's quality baseline.
 
 The DETECTOR half of /repo-groom. It resolves the repo's tier from
 `.repo-tiers.json`, detects the stack, and prints what baseline files are
-MISSING. It never writes to the target repo — Claude does the writes per
+MISSING. It never writes to the target repo, Claude does the writes per
 SKILL.md, so it can adapt CI templates, confirm the LICENSE choice, and check
 README accuracy with judgement the script doesn't have.
 
@@ -90,7 +90,7 @@ def agents_state(repo):
     """Return one of: ok-agents, ok-claude-symlink, ok-claude-include, missing.
 
     AGENTS.md is the canonical file for every agent, regardless of harness.
-    CLAUDE.md is at most a one-line pointer to it and is never created here —
+    CLAUDE.md is at most a one-line pointer to it and is never created here;
     a symlink or an import shim is a second place to look for the same content.
     Existing pointers/symlinks are left alone; only the direction is enforced."""
     agents = repo / "AGENTS.md"
@@ -160,10 +160,10 @@ def main():
     if not repo.is_dir():
         plan["refuse"] = f"not a directory: {repo}"
     elif tier is None:
-        plan["refuse"] = ("untiered — add it to .repo-tiers.json first "
+        plan["refuse"] = ("untiered, add it to .repo-tiers.json first "
                           "(pick S-priv/S-pub/W); untiered repos are scratch")
     elif tier in REFUSE_TIERS:
-        plan["refuse"] = f"tier {tier} — NEVER groom (report-only / out of scope)"
+        plan["refuse"] = f"tier {tier}, NEVER groom (report-only / out of scope)"
 
     if plan["refuse"] is None:
         stack = detect_stack(repo)
@@ -174,14 +174,14 @@ def main():
         else:
             plan["gaps"].append({
                 "item": "CI", "action": f"add {stack} workflow",
-                "template": CI_TEMPLATE.get(stack, "no template — propose minimal or skip")})
+                "template": CI_TEMPLATE.get(stack, "no template, propose minimal or skip")})
 
         ast = agents_state(repo)
         if ast.startswith("ok"):
             plan["already_ok"].append(f"AGENTS.md ({ast})")
         elif ast == "claude-only":
             plan["gaps"].append({"item": "AGENTS.md",
-                "action": "normalize: git mv CLAUDE.md AGENTS.md — no symlink, no replacement CLAUDE.md"})
+                "action": "normalize: git mv CLAUDE.md AGENTS.md, no symlink, no replacement CLAUDE.md"})
         else:
             plan["gaps"].append({"item": "AGENTS.md", "action": "generate minimal AGENTS.md (/init-style, terse)"})
 
@@ -200,11 +200,11 @@ def main():
             plan["already_ok"].append("lint/format")
         else:
             plan["gaps"].append({"item": "lint",
-                "action": "ruff (python) / eslint+prettier (node) — offer, don't force"})
+                "action": "ruff (python) / eslint+prettier (node), offer, don't force"})
 
         commit = {"S-priv": "commit + push OK",
                   "S-pub": "commit + push OK; releases/tags need approval",
-                  "W": "NEW BRANCH + local commits only — user pushes/PRs"}
+                  "W": "NEW BRANCH + local commits only, user pushes/PRs"}
         plan["commit_policy"] = commit.get(tier, "?")
 
     if a.json:
@@ -222,7 +222,7 @@ def main():
             extra = f"  [template: {g['template']}]" if g.get("template") else ""
             print(f"  - {g['item']}: {g['action']}{extra}")
     else:
-        print("  none — already at baseline")
+        print("  none, already at baseline")
     print("\nALREADY OK (leave untouched):")
     for x in plan["already_ok"]:
         print(f"  - {x}")

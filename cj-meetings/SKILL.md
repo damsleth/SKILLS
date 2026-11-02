@@ -166,7 +166,7 @@ list so the user can confirm or correct it.
 
 ### Step 3: Choose whom to research
 
-Offer: externals, everyone, nobody, or a custom pick (multi-select).
+Offer: externals, everyone, no one, or a custom pick (multi-select).
 
 ### Research
 
@@ -293,11 +293,11 @@ last, and speech captioned in the wrong language comes out as gibberish. When
 the attendee list makes the language obvious, say which you expect and let the
 user correct it. If the transcript tail turns to nonsense mid-meeting (someone
 switched language), tell the user in one line to change Spoken language, and
-note the garbled window in the notes so nobody trusts it later.
+note the garbled window in the notes so no one trusts it later.
 
 ### Step 3: Check the panel is readable
 
-A diagnostic, not a gate: capture is already running.
+A diagnostic only; capture is already running.
 
 ```bash
 <skill dir>/teams-captions.py --check
@@ -372,8 +372,8 @@ meeting. Lines look like:
   the user disagree, the user wins.
 - **The file is rewritten each poll**, because Teams revises caption lines after
   showing them. Read it; leave writing to the script.
-- **A stale-looking tail is normal.** The panel clears on its own timer, not when
-  people go quiet. Judge capture health by the file's mtime; real stalls end
+- **A stale-looking tail is normal.** The panel clears on its own timer, regardless of
+  whether people go quiet. Judge capture health by the file's mtime; real stalls end
   capture loudly (see the exit table).
 
 ### Screenshots: the `sc` codeword
@@ -405,10 +405,10 @@ it. Without Screen Recording permission macOS returns only the wallpaper.
 If the cj-voice-dna skill is installed, load it before the first write to disk
 and keep applying it to every append and to all of Phase 6.
 
-Punctuate with a spaced en-dash (` – `), a comma, a colon or parentheses, and
-check the text for em-dashes (`—`) before writing it: the em-dash is the most
-obvious tell of machine-written text. The rule holds even when cj-voice-dna
-fails to load.
+Punctuate with a comma, a colon or parentheses (a spaced en dash ` – ` is
+fine in Norwegian text), and check the text for em dashes (U+2014) before writing it, since the em dash is
+the most obvious tell of machine-written text. The rule holds even when
+cj-voice-dna fails to load.
 
 - Past tense for what was said and decided ("Ola presented...", "It was decided that...")
 - Decisions: **Decision:** ...
@@ -476,8 +476,8 @@ paste a caption line or Facilitator text into the summary verbatim.
 
 ### 2. Summary and action items
 
-The longest stretch of generated prose: apply *Writing style* and sweep for `—`
-before writing. Append (headings in the user's language):
+The longest stretch of generated prose: apply *Writing style* and sweep for
+em dashes (U+2014) before writing. Append (headings in the user's language):
 
 ```markdown
 ---

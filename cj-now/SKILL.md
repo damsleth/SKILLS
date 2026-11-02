@@ -1,12 +1,12 @@
 ---
 name: cj-now
-description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "what's open", "what am I working on", "show all tasks", "status across everything" (or "hva er aktuelt nå", "hva jobber jeg med"), "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only — it never writes to any source.
+description: One canonical, read-only view of everything open across repo .plans/, Things 3, Azure DevOps work items and ledger open loops, keyed on owa-piggy profile. Use when the user asks "what's open", "what am I working on", "show all tasks", "status across everything" (or "hva er aktuelt nå", "hva jobber jeg med"), "/cj-now", or when you need to know whether a piece of work already has a task somewhere before creating a new one. Read-only; it never writes to any source.
 ---
 
 # cj-now
 
-`now` projects four task surfaces into one list. It is a projection, not a
-store. Nothing is written and nothing is synced, so nothing can drift.
+`now` projects four task surfaces into one list. It is a projection of the
+sources. Nothing is written and nothing is synced, so nothing can drift.
 
 ```
 now                     open work, grouped by profile, 10 rows each
@@ -35,7 +35,7 @@ show) plus the repo's open todos; `idea <text>` captures a new one with
 | --- | --- | --- | --- |
 | `plans` | `<repo>/.plans/TODO.md` + `<repo>/.plans/*.md` | filesystem | repo work, 1:1 with a git repo; `ado:` frontmatter links a plan to its work item |
 | `things` | `things all --json` | local sqlite | personal tasks, human-owned |
-| `ado` | `owa-ado --profile <p> wi --agent --mine`, per ADO profile | network, cached 15 min per profile | team work items, **not yours** |
+| `ado` | `owa-ado --profile <p> wi --agent --mine`, per ADO profile | network, cached 15 min per profile | team work items, owned by the team |
 | `loops` | `ledger loops --json` | local files | open loops from the cognitive ledger; profile is the loop's `scope` (work / personal / dev / meta) and the work-profile filter never hides them |
 
 Each source stays authoritative for its own domain. `now` never reconciles them
@@ -45,15 +45,15 @@ The ADO adapter runs `owa-ado wi --mine` once for every owa-piggy profile with
 the `ado` service (`owa-piggy profiles --json`), passing `--org` from that
 profile's devops client capture url (`https://dev.azure.com/<org>/...`). Each
 work item is tagged with the profile it came from. `--mine` follows assignment
-across every project in the organisation. It used to carry its own
-cross-project WIQL, because `--mine` was pinned to the single project in
-`~/.config/owa-ado/config` and hid everything else. That belonged one layer
-down and was fixed in owa-ado, so `now` no longer knows anything about how ADO
-scopes a query.
+across every project in the organisation.
+
+`now` once carried its own cross-project WIQL, because `--mine` was pinned to
+the single project in `~/.config/owa-ado/config`. That scoping was fixed one
+layer down in owa-ado, so `now` knows nothing about how ADO scopes a query.
 
 Closed, Removed and Done are dropped here rather than in the query. Resolved is
-not: it means fixed but still sitting on the board waiting to be verified, which
-is exactly the item that needs a last push.
+kept: it means fixed but still waiting on the board to be verified, which is
+the item that needs a last push.
 
 ## The join key is the profile
 
@@ -84,18 +84,22 @@ organisation is read off each ADO profile's devops client in owa-piggy.
 
 Sort order is how a human triages. A deadline inside 14 days jumps the queue;
 everything else falls back to most recently touched. `2026-09-11` in the last
-column is a deadline. Bare `now` shows only status and title (clipped to the terminal width), with
-`ado:` on ADO statuses and `loop` for ledger loops; `-v` adds the id column and
+column is a deadline.
+
+Bare `now` shows only status and title (clipped to the terminal width), with
+`ado:` on ADO statuses and `loop` for ledger loops. `-v` adds the id column and
 the deadline, or age when there is none (`17d` is how long since anything moved).
 
 Things reports Today and Upcoming only as group titles: the items inside still
 say start=Anytime or Someday. Both are read from the group, so `status` says
 `today` or `upcoming`, and an upcoming task carries `starts` with the date it
-arrives. An upcoming task earns a row in the normal view the same way anything else
+arrives.
+
+An upcoming task earns a row in the normal view the same way anything else
 does, so one deliberately scheduled for the 21st stays out until its deadline or
-its start brings it in. `--upcoming` is how you look ahead on purpose: it skips
-the relevance filter, since that filter is precisely what hides deferred work,
-and leads each row with the date the task arrives.
+its start brings it in. `--upcoming` looks ahead on purpose. It skips the
+relevance filter, which is what hides deferred work, and leads each row with
+the date the task arrives.
 
 A Things task shows up only if it has a deadline, sits in Today, or duplicates
 an ADO work item. Anything and Someday with no date is backlog the user keeps in
@@ -104,35 +108,37 @@ Things on purpose, and it used to bury the work items. `--full` brings it back.
 A `.plans/` directory is a document library as much as a task list, so the same
 rule applies: `TODO.md` lines are tasks and always show, a plan file is the
 document *about* work and shows when its `ado:` frontmatter names an open work
-item. Across every repo that is 90 plan files against 76 todo lines. `--full`
-and `--grep` bring them back.
+item. Across every repo that is 90 plan files against 76 todo lines.
+`--full` and `--grep` bring them back.
 
 ## Size
 
 `now --agent` always covers every profile (it implies `--all`), around 75 KB;
 the human view without `--all` is the work view, around a third of that. Scope
-with `--profile`; reaching for `--source things` to control size silently drops
-ADO and plans.
+with `--profile`; `--source things` as a size control silently drops ADO and
+plans.
 
 `⧉` marks a Things row whose title names an ADO work item also in the list.
-By convention such a task is a **personal sub-step** of that work
-item, never a copy of it: the work item holds the status, the Things task holds
-what the user does next about it. So the mark is a view, not a warning, and there is
-no footer nag. A `.plans/` file naming its work item is not marked at all: that
-is where the reasoning lives, and the duplication is intended.
+By convention such a task is a **personal sub-step** of that work item: the
+work item holds the status, the Things task holds what the user does next
+about it.
+
+The mark is informational and there is no footer nag. A `.plans/` file naming
+its work item carries no mark, since that is where the reasoning lives and the
+duplication is intended.
 
 `--grep` is a search, so it runs before the relevance filter and across every
-profile: naming a needle means look everywhere. `--full --all` is not needed to
-make a search work.
+profile: naming a needle means look everywhere, so a search needs no
+`--full --all`.
 
-`--dupes` lists them and names the work item each one belongs to. The one thing
-to look for there is a Things task that *is* the work item (same title, no
-personal step in it); that one is a leftover and gets cancelled. From an agent,
-prefer `--agent`: every record carries `dupe_of` with the work item id.
+`--dupes` lists them and names the work item each one belongs to. Look there for
+a Things task that *is* the work item (same title, no personal step in it);
+that one is a leftover and gets cancelled. From an agent, prefer `--agent`:
+every record carries `dupe_of` with the work item id.
 
-Drift shows up on its own, no detector needed. A plan touched 2 days ago sitting
-next to its Things task untouched for 17 days in Someday is the signal. Read it
-and close the stale side.
+Drift shows up on its own, no detector needed. A plan touched 2 days ago
+sitting next to its Things task untouched for 17 days in Someday is the signal.
+Read it and close the stale side.
 
 ## For agents
 

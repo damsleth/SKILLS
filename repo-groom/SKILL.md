@@ -1,13 +1,13 @@
 ---
 name: repo-groom
-description: Bring ONE repo up to the quality baseline — CI workflow, AGENTS.md, LICENSE (public only), README accuracy, lint config — writing only what is MISSING and respecting the repo's tier policy. The fixer half of the repo-routine family; repo-health finds the gaps, this closes them. Use when the user says "repo-groom", "groom <repo>", "bring <repo> up to baseline", or "/repo-groom <repo>".
+description: Bring ONE repo up to the quality baseline (CI workflow, AGENTS.md, LICENSE (public only), README accuracy, lint config), writing only what is MISSING and respecting the repo's tier policy. The fixer half of the repo-routine family; repo-health finds the gaps, this closes them. Use when the user says "repo-groom", "groom <repo>", "bring <repo> up to baseline", or "/repo-groom <repo>".
 ---
 
 # repo-groom
 
 The quality-baseline fixer. `repo-health` detects; this closes the gaps on
 **one** repo. Grooming is a **write op**, so always show a plan and get a nod
-before touching files, and make every change **idempotent** — never clobber a
+before touching files, and make every change **idempotent**: never clobber a
 file that is already good.
 
 ## Local overlay
@@ -44,14 +44,14 @@ Turn the GAPS list into a short plan of proposed additions and show it to the
 user. Name each file you'd create, note anything you'd leave untouched, and for
 `S-pub` LICENSE ask which license before writing anything. Wait for a go.
 
-## 3. Close the gaps — only what's MISSING, idempotently
+## 3. Close the gaps: only what's missing, idempotently
 
 Never overwrite an existing good file. If a check says ALREADY OK, skip it.
 
 ### CI workflow (skip entirely if CI already present)
 
 Write `.github/workflows/ci.yml` adapted from the template for the stack.
-Keep it minimal — lint + test + build for the repo's ACTUAL stack. Substitute
+Keep it minimal: lint + test + build for the repo's actual stack. Substitute
 the real package/source path (the templates below use placeholders). Don't invent heavy CI.
 When a clone of `yaams` or `owa-tools` sits under the code root, its CI is the
 reference for Python; the overlay may name reference repos for other stacks.
@@ -82,7 +82,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: pip install -e ".[dev]"     # or .[test] — match the repo's extras
+      - run: pip install -e ".[dev]"     # or .[test]; match the repo's extras
       - run: pytest -q
 ```
 
@@ -104,7 +104,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-**Node/TS** — use this minimal
+**Node/TS**: use this minimal
 conditional template (only runs lint/build/test if those scripts exist in
 `package.json`; adjust `npm` → `pnpm`/`bun`/`yarn` to match the repo's lockfile):
 ```yaml
@@ -126,17 +126,17 @@ jobs:
 ```
 
 **dotnet / shell / unknown**: no template here. Propose a minimal one to the
-user or skip with a one-line note — don't build one blind.
+user or skip with a one-line note. Don't build one blind.
 <!-- ponytail: Python/Rust/Node only. dotnet/shell get a "skip with note", not a template. -->
 
 `S-pub` repos may also want the `release.yml` pattern (tag-triggered, re-runs CI
-gates, builds artifacts, creates the GitHub Release) — offer it, but any tag or
+gates, builds artifacts, creates the GitHub Release). Offer it, but any tag or
 release still needs the user's approval per tier policy.
 
-### Agent-instruction file — AGENTS.md, and only AGENTS.md
+### Agent-instruction file: AGENTS.md, and only AGENTS.md
 
 `AGENTS.md` is canonical in every repo, for every agent, whatever the harness.
-**Never create a `CLAUDE.md`** — not a symlink, not an `@AGENTS.md` shim, not a
+**Never create a `CLAUDE.md`**, whether as a symlink, an `@AGENTS.md` shim or a
 copy. A second path to the same content is a second place to forget to update.
 The script reports which case applies:
 - `ok-agents` / `ok-*-symlink` / `ok-claude-include` → already fine, do nothing.
@@ -152,19 +152,19 @@ real instructions sitting in a `CLAUDE.md`, move them over.
 
 <!-- ponytail: one file, one direction. No bridges to maintain. -->
 
-### LICENSE — S-pub only, only if missing
+### LICENSE: S-pub only, only if missing
 
 Default MIT with the repo owner as copyright holder (name from `git config user.name`). **Confirm the license choice
-with the user before writing** — don't hardcode blindly. Never add a LICENSE to
+with the user before writing**; don't hardcode the choice. Never add a LICENSE to
 S-priv/W repos as part of grooming.
 
-### README — presence + accuracy check
+### README: presence + accuracy check
 
 If missing, add a minimal one. If present, skim it against the actual code and
 **flag drift** (stale commands, renamed entry points, features that no longer
-exist) — report it, don't rewrite the whole thing unless the user asks.
+exist). Report it, don't rewrite the whole thing unless the user asks.
 
-### lint/format config — only if the stack has an obvious standard and it's absent
+### lint/format config: only if the stack has an obvious standard and it's absent
 
 `ruff` for Python, `eslint`/`prettier` for Node. Offer it; don't force it. Rust
 ships rustfmt/clippy with the toolchain, so nothing to add. Skip if already
@@ -173,14 +173,14 @@ configs, and devDependencies).
 
 ## 4. Verify the groom didn't break anything
 
-Run the repo's own tests/lint if present — `pytest -q`, `cargo test`,
+Run the repo's own tests/lint if present: `pytest -q`, `cargo test`,
 `npm test`, `ruff check`, `cargo clippy`. Confirm green. YAML-lint the new
 workflow if you can. If a tool isn't installed locally, say so rather than
 claiming a pass.
 
 ## 5. Commit per tier policy
 
-Stage only the files you added/changed (never `git add -A` — don't sweep stray
+Stage only the files you added/changed (never `git add -A`; don't sweep stray
 `.DS_Store` or unrelated dirty files). Clear message summarizing what was added
 vs what was already fine, e.g. `chore: add CI workflow + AGENTS.md baseline`.
 

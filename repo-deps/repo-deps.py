@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""repo-deps — read-only security & dependency sweep over ~/code repos.
+"""repo-deps: read-only security & dependency sweep over ~/code repos.
 
 The ANALYSIS half of the /repo-deps skill. This script NEVER modifies a repo:
 it only runs native audit tools in read-only modes and writes one report,
 REPO-DEPS.md, at the root of the code dir (which is not itself a git repo).
 Remediation (applying safe bumps as commits) is done interactively by Claude
-per SKILL.md — it is deliberately NOT in this script, so the monthly cron can
+per SKILL.md, it is deliberately NOT in this script, so the monthly cron can
 never write to a repo.
 
 Per repo it detects the stack(s) and runs, where the tool exists:
@@ -16,7 +16,7 @@ Per repo it detects the stack(s) and runs, where the tool exists:
     secrets  gitleaks --no-git if installed, else a regex fallback (report only)
     actions  GitHub Actions pinned-by-SHA vs mutable @v-tag hygiene check
 
-Missing tools are noted and skipped — a missing tool never fails the run.
+Missing tools are noted and skipped, a missing tool never fails the run.
 
 Usage:
     ./repo-deps.py                       # all active repos (skip archive/external)
@@ -46,7 +46,7 @@ TOP_ITEMS = 40                         # cap list lengths in the report
 
 # launchd runs with a bare PATH (/usr/bin:/bin:...) and no fnm/uv shims, so bake
 # the real tool dirs in. Without this the monthly cron would report every Node
-# repo as "npm not installed" and exit 0 — a clean-looking dead cron.
+# repo as "npm not installed" and exit 0, a clean-looking dead cron.
 EXTRA_PATH = [
     "/opt/homebrew/bin",                                   # brew: node, dotnet, fnm
     os.path.expanduser("~/.local/bin"),                    # uv, uvx
@@ -119,7 +119,7 @@ def detect(repo):
     s["node"] = (repo / "package.json").is_file()
     s["python"] = (repo / "pyproject.toml").is_file() or (repo / "requirements.txt").is_file()
     s["rust"] = (repo / "Cargo.toml").is_file()
-    # ponytail: shallow glob, not a full walk — root/solution .NET projects only.
+    # ponytail: shallow glob, not a full walk, root/solution .NET projects only.
     s["dotnet"] = bool(list(repo.glob("*.csproj")) + list(repo.glob("*.sln"))
                        + list(repo.glob("*/*.csproj")))
     # deployed = a root-level wrangler config (CF Worker). Pages-only sites and
@@ -143,12 +143,12 @@ def _split_bumps(outdated):
         cur = info.get("current") or info.get("wanted") or ""
         latest = info.get("latest") or info.get("wanted") or ""
         if not latest or cur == latest:
-            continue                       # no actual bump — npm lists these anyway
+            continue                       # no actual bump, npm lists these anyway
         if _ver(latest) <= _ver(cur):
-            continue                       # dist-tag "latest" older than installed — not a bump
+            continue                       # dist-tag "latest" older than installed, not a bump
         cmaj = re.match(r"\D*(\d+)", cur)
         lmaj = re.match(r"\D*(\d+)", latest)
-        line = f"{name} {cur or '—'} -> {latest or '?'}"
+        line = f"{name} {cur or '?'} -> {latest or '?'}"
         if cmaj and lmaj and int(lmaj.group(1)) > int(cmaj.group(1)):
             breaking.append(line)
         else:
@@ -165,7 +165,7 @@ def audit_node(repo, out):
     else:
         pm = "npm"
     if not have(pm):
-        out["notes"].append(f"Node: `{pm}` not installed — skipped")
+        out["notes"].append(f"Node: `{pm}` not installed, skipped")
         return
 
     # outdated (npm/pnpm share --json shape; yarn differs, so best-effort)
@@ -199,7 +199,7 @@ def audit_node(repo, out):
                         if title:
                             cves.append(title)
                 out.setdefault("vulns", []).append(
-                    f"[{sev}] {name}" + (f" — {cves[0]}" if cves else ""))
+                    f"[{sev}] {name}" + (f", {cves[0]}" if cves else ""))
                 vulns.append(name)
             meta = (data.get("metadata") or {}).get("vulnerabilities") or {}
             if meta:
@@ -215,7 +215,7 @@ def audit_node(repo, out):
 
 def audit_python(repo, out):
     if not have("uvx"):
-        out["notes"].append("Python: `uvx`/pip-audit not available — deps not audited")
+        out["notes"].append("Python: `uvx`/pip-audit not available, deps not audited")
         _declare_python(repo, out)
         return
 
@@ -229,7 +229,7 @@ def audit_python(repo, out):
         if rc == 0 and os.path.isfile(tmp):
             req = tmp
         else:
-            out["notes"].append("Python: `uv export` failed — deps not audited")
+            out["notes"].append("Python: `uv export` failed, deps not audited")
     elif (repo / "requirements.txt").is_file():
         req = str(repo / "requirements.txt")
 
@@ -238,7 +238,7 @@ def audit_python(repo, out):
         return
 
     # --no-deps: audit exactly the pinned set, don't build an ephemeral venv.
-    # ponytail: flat 600s — pip-audit queries PyPI per package, ~5 min with extras.
+    # ponytail: flat 600s, pip-audit queries PyPI per package, ~5 min with extras.
     rc, so, se = run(repo, "uvx", "pip-audit", "--no-deps", "--format", "json",
                      "-r", req, timeout=600)
     if tmp:
@@ -256,7 +256,7 @@ def audit_python(repo, out):
                     fix = ",".join(v.get("fix_versions", []) or []) or "no fix"
                     out.setdefault("vulns", []).append(
                         f"[py] {dep.get('name')} {dep.get('version','')} "
-                        f"— {ids} (fix: {fix})")
+                        f"; {ids} (fix: {fix})")
             return
         except json.JSONDecodeError:
             pass
@@ -266,7 +266,7 @@ def audit_python(repo, out):
 
 def _declare_python(repo, out):
     """Fallback: just list declared deps so the report isn't empty. ponytail:
-    no hardcoded stale-version map — that data rots and can't be verified."""
+    no hardcoded stale-version map, that data rots and can't be verified."""
     py = repo / "pyproject.toml"
     if py.is_file():
         txt = py.read_text(errors="ignore")
@@ -281,7 +281,7 @@ def _declare_python(repo, out):
 
 def audit_rust(repo, out):
     if not have("cargo"):
-        out["notes"].append("Rust: `cargo` not installed — skipped")
+        out["notes"].append("Rust: `cargo` not installed, skipped")
         return
     # cargo-audit / cargo-outdated are separate binaries invoked as subcommands.
     if have("cargo-audit"):
@@ -292,13 +292,13 @@ def audit_rust(repo, out):
                 for v in (data.get("vulnerabilities") or {}).get("list", []):
                     adv = v.get("advisory", {})
                     out.setdefault("vulns", []).append(
-                        f"[rust] {adv.get('package','?')} — "
+                        f"[rust] {adv.get('package','?')}, "
                         f"{adv.get('id','?')} {adv.get('title','')[:80]}")
             except json.JSONDecodeError:
                 out["notes"].append("Rust: cargo audit output unparseable")
     else:
         out["notes"].append("Rust: `cargo-audit` not installed "
-                            "(`cargo install cargo-audit`) — vulns not checked")
+                            "(`cargo install cargo-audit`), vulns not checked")
     if have("cargo-outdated"):
         rc, so, se = run(repo, "cargo", "outdated", "--format", "json")
         if so.strip():
@@ -311,21 +311,21 @@ def audit_rust(repo, out):
             except json.JSONDecodeError:
                 pass
     else:
-        out["notes"].append("Rust: `cargo-outdated` not installed — bumps not listed")
+        out["notes"].append("Rust: `cargo-outdated` not installed, bumps not listed")
 
 
 # ── .NET ─────────────────────────────────────────────────────────────────
 
 def audit_dotnet(repo, out):
     if not have("dotnet"):
-        out["notes"].append(".NET: `dotnet` not installed — skipped")
+        out["notes"].append(".NET: `dotnet` not installed, skipped")
         return
     # --outdated and --vulnerable are mutually exclusive on recent SDKs -> two calls.
     for flag, key in (("--vulnerable", "vulns"), ("--outdated", "dotnet_outdated")):
         rc, so, se = run(repo, "dotnet", "list", "package", flag, "--format", "json")
         blob = so.strip() or se.strip()
         if "restore" in (so + se).lower() and rc != 0:
-            out["notes"].append(".NET: project needs `dotnet restore` — skipped "
+            out["notes"].append(".NET: project needs `dotnet restore`, skipped "
                                "(never auto-restored)")
             return
         if not so.strip():
@@ -343,7 +343,7 @@ def audit_dotnet(repo, out):
                         for adv in pkg.get("vulnerabilities", []) or []:
                             out.setdefault("vulns", []).append(
                                 f"[.net] {pkg.get('id')} {pkg.get('resolvedVersion','')} "
-                                f"— {adv.get('severity','?')} {adv.get('advisoryUrl','')}")
+                                f"; {adv.get('severity','?')} {adv.get('advisoryUrl','')}")
                     else:
                         lat = pkg.get("latestVersion")
                         res = pkg.get("resolvedVersion")
@@ -388,7 +388,7 @@ def scan_secrets(repo, out):
                 pass
         return
 
-    # regex fallback — report pattern name + file:line ONLY, never the value.
+    # regex fallback, report pattern name + file:line ONLY, never the value.
     out.setdefault("secret_tool", "regex-fallback (gitleaks not installed)")
     seen = 0
     for dirpath, dirnames, filenames in os.walk(repo):
@@ -468,7 +468,7 @@ def analyse(root, rel, tier):
             audit_dotnet(repo, out)
         scan_secrets(repo, out)
         check_actions(repo, out)
-    except Exception as e:  # noqa: BLE001 — one bad repo must not kill the sweep
+    except Exception as e:  # noqa: BLE001, one bad repo must not kill the sweep
         out["notes"].append(f"analysis error: {type(e).__name__}: {e}")
     return out
 
@@ -493,7 +493,7 @@ def render(results, root, elapsed, scope):
     now = datetime.now(timezone.utc).astimezone()
     n = lambda k: sum(1 for r in results if r.get(k))
     tot = lambda k: sum(len(r.get(k, [])) for r in results)
-    L = [f"# Repo deps & security — {now:%Y-%m-%d}", "",
+    L = [f"# Repo deps & security: {now:%Y-%m-%d}", "",
          f"Read-only sweep of `{root}` · {len(results)} repos in {elapsed:.1f}s · "
          f"scope: {scope}", "",
          "This report never modifies a repo. Safe bumps are applied only "
@@ -512,7 +512,7 @@ def render(results, root, elapsed, scope):
     L += ["## Per-repo findings", "",
           "Order: deployed workers first, then public (S-pub), then private "
           "(S-priv), then work (W/W-ro). W-ro/archive/external are never "
-          "remediated — analysis only.", ""]
+          "remediated, analysis only.", ""]
 
     any_repo = False
     for r in sorted(results, key=sort_key):
@@ -525,7 +525,7 @@ def render(results, root, elapsed, scope):
         tags.append(r["tier"])
         if r["stacks"]:
             tags.append("/".join(r["stacks"]))
-        L += [f"### `{r['repo']}` — {' · '.join(tags)}", ""]
+        L += [f"### `{r['repo']}`, {' · '.join(tags)}", ""]
 
         if r.get("vulns"):
             L += ["**Vulnerabilities**", ""]
@@ -536,26 +536,26 @@ def render(results, root, elapsed, scope):
         if r.get("node_safe") or r.get("dotnet_outdated") or r.get("rust_outdated"):
             safe = (r.get("node_safe", []) + r.get("dotnet_outdated", [])
                     + r.get("rust_outdated", []))
-            L += ["**Safe bumps (minor/patch — auto-bumpable)**", ""]
+            L += ["**Safe bumps (minor/patch, auto-bumpable)**", ""]
             L += [f"- {x}" for x in safe[:TOP_ITEMS]] + [""]
         if r.get("node_breaking"):
-            L += ["**Breaking bumps (major — manual review, NOT auto-bumped)**", ""]
+            L += ["**Breaking bumps (major, manual review, NOT auto-bumped)**", ""]
             L += [f"- {x}" for x in r["node_breaking"][:TOP_ITEMS]] + [""]
         if r.get("py_declared"):
-            L += ["**Declared Python deps (pip-audit unavailable — not audited)**", "",
+            L += ["**Declared Python deps (pip-audit unavailable, not audited)**", "",
                   "- " + ", ".join(f"`{d}`" for d in r["py_declared"]), ""]
         if r.get("secrets"):
             tool = r.get("secret_tool", "gitleaks")
-            L += [f"**Secret hits ({tool}) — REVIEW MANUALLY, never auto-remediated**", ""]
+            L += [f"**Secret hits ({tool}), REVIEW MANUALLY, never auto-remediated**", ""]
             L += [f"- {s}" for s in r["secrets"][:TOP_ITEMS]] + [""]
         if r.get("unpinned_actions"):
-            L += ["**Unpinned GitHub Actions (mutable @tag — pin to SHA)**", ""]
+            L += ["**Unpinned GitHub Actions (mutable @tag, pin to SHA)**", ""]
             L += [f"- {a}" for a in r["unpinned_actions"][:TOP_ITEMS]] + [""]
         if r["notes"]:
             L += ["_Notes:_ " + "; ".join(r["notes"]), ""]
 
     if not any_repo:
-        L += ["Nothing to report — no vulnerabilities, outdated deps, secret "
+        L += ["Nothing to report, no vulnerabilities, outdated deps, secret "
               "hits, or unpinned actions across the swept repos.", ""]
     return "\n".join(L)
 

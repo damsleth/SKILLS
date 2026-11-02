@@ -49,10 +49,11 @@ skill never needs it.
 
 Mirror the trigger language. Event subjects and bodies, mail drafts and your
 own replies follow the language the user invoked the skill with. When replying
-to or forwarding an existing message, match that thread's language. When the
-trigger language is ambiguous, default to Norwegian (Bokmål) unless the overlay
-names another, and stay in it until the user switches. CLI flags, profile
-aliases and category names stay in their canonical form.
+to or forwarding an existing message, match that thread's language.
+
+When the trigger language is ambiguous, default to Norwegian (Bokmål) unless
+the overlay names another, and stay in it until the user switches. CLI flags,
+profile aliases and category names stay in their canonical form.
 
 ## Profiles
 
@@ -228,12 +229,13 @@ name, trigger phrases, a profile, and time blocks with categories, e.g.
 11:30-16:00  <Client>  [<category>]
 ```
 
-A day off is `owa-cal create --allday` with a `PTO`-style category. When the
-user's intent matches a template, create its events on each date without
-asking for the times and categories it already specifies. For a week-shape
+A day off is `owa-cal create --allday` with a `PTO`-style category.
+
+When the user's intent matches a template, create its events on each date
+without asking for the times and categories it already specifies. For a week-shape
 ("Tuesday and Thursday at the client, Friday off"), resolve each weekday to a
-date and pick one template per day. Either way, list the resolved dates and
-events back and create only after confirmation.
+date and pick one template per day. Either way, list the resolved dates and events back and create only after
+confirmation.
 
 **Audit one profile end to end.**
 

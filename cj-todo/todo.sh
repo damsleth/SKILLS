@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# todo — the world's most lightweight repo-scoped todo & plan tracker.
+# todo: the world's most lightweight repo-scoped todo & plan tracker.
 #
 # Filesystem-first, so it works with hand-maintained .plans/ dirs too:
-#   <repo>/.plans/TODO.md    — open one-line todos (- [ ] checkboxes)
-#   <repo>/.plans/DONE.md    — completed todos, archived with a date
-#   <repo>/.plans/<name>.md  — one file per plan (the file *is* the unit of work)
-#   <repo>/.plans/done/      — completed plans (files moved here)
+#   <repo>/.plans/TODO.md    : open one-line todos (- [ ] checkboxes)
+#   <repo>/.plans/DONE.md    : completed todos, archived with a date
+#   <repo>/.plans/<name>.md  : one file per plan (the file *is* the unit of work)
+#   <repo>/.plans/done/      : completed plans (files moved here)
 #
 # Listing shows open todos + every plan file in .plans/. It deliberately does
 # NOT turn prose bullets or numbered lists into todos, so narrative TODO.md
@@ -51,7 +51,7 @@ global_dir() {
 repo_root() { git rev-parse --show-toplevel 2>/dev/null || pwd; }
 
 if [ "$GLOBAL" -eq 1 ]; then
-  PLANS_DIR="$(global_dir)"          # used directly — no .plans/ suffix
+  PLANS_DIR="$(global_dir)"          # used directly, no .plans/ suffix
   ROOT="$(dirname "$PLANS_DIR")"     # only for relative-path display
 else
   ROOT="$(repo_root)"
@@ -230,7 +230,7 @@ cmd_list() {
 }
 
 # Snapshot the enumerated list, then resolve every requested number against
-# that snapshot before mutating anything — so completing/removing several at
+# that snapshot before mutating anything, so completing/removing several at
 # once doesn't drift as the list renumbers under us. Requires bash 4 arrays.
 cmd_done() {
   [ "$#" -gt 0 ] || die "which one? usage: todo done <number> [number...]"
@@ -305,13 +305,13 @@ cmd_install() {
   local target="$bindir/todo"
   mkdir -p "$bindir"
   if [ -e "$target" ] && [ ! -L "$target" ]; then
-    echo "${YELLOW}note:${RESET} $target already exists and is not a symlink — leaving it alone."
+    echo "${YELLOW}note:${RESET} $target already exists and is not a symlink. Leaving it alone."
     echo "      run this script as ./todo.sh, or remove that file and re-run 'todo install'."
     return 0
   fi
   local existing; existing="$(command -v todo 2>/dev/null || true)"
   if [ -n "$existing" ] && [ "$existing" != "$target" ]; then
-    echo "${YELLOW}note:${RESET} another 'todo' is earlier on PATH at $existing — it will shadow this one."
+    echo "${YELLOW}note:${RESET} another 'todo' is earlier on PATH at $existing. It will shadow this one."
   fi
   ln -sfn "$self" "$target"
   ln -sfn "$self" "$bindir/todox"   # todox = todo --global
@@ -319,13 +319,13 @@ cmd_install() {
   echo "${GREEN}✓${RESET} linked ${BOLD}todo${RESET} & ${BOLD}todox${RESET} → $bindir"
   case ":$PATH:" in
     *":$bindir:"*) ;;
-    *) echo "${YELLOW}note:${RESET} $bindir is not on your PATH — add it to use 'todo' directly." ;;
+    *) echo "${YELLOW}note:${RESET} $bindir is not on your PATH. Add it to use 'todo' directly." ;;
   esac
 }
 
 cmd_help() {
   cat <<EOF
-${BOLD}todo${RESET} — repo-scoped todos & plans (stored in ${DIM}<repo>/.plans/${RESET})
+${BOLD}todo${RESET}: repo-scoped todos & plans (stored in ${DIM}<repo>/.plans/${RESET})
 
 ${BOLD}usage${RESET}
   todo                       list open todos & plans (default)
@@ -346,7 +346,7 @@ ${BOLD}global${RESET} (one shared store instead of the repo's .plans/)
   todox add "<text>"         …or use the todox alias
   ${DIM}location is asked once, saved to ~/.config/cj-todo/dir; override w/ \$TODO_GLOBAL_DIR${RESET}
 
-${DIM}Plans are just .md files in .plans/ — drop files in by hand and they show up.${RESET}
+${DIM}Plans are just .md files in .plans/. Drop files in by hand and they show up.${RESET}
 EOF
 }
 

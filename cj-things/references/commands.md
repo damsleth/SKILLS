@@ -1,7 +1,7 @@
 # `things` command reference
 
 Companion to `SKILL.md`. Captures the full command surface of `things3-cli` (binary: `things`,
-v0.3.0). The CLI is self-documenting — `things help` lists commands and `things help <command>`
+v0.3.0). The CLI is self-documenting: `things help` lists commands and `things help <command>`
 prints the authoritative flags. This file is a quick map so you don't have to shell out for the
 common cases. When in doubt, trust `things help <command>` over this doc.
 
@@ -20,8 +20,8 @@ things [GLOBAL OPTIONS...] <COMMAND> [ARGS...]
 
 Environment:
 
-- `THINGS_AUTH_TOKEN` — URL-scheme token, **required by `update*`**. Set via `things auth` steps.
-- `THINGSDB` — override the path to the Things SQLite database (same as `--db=PATH`).
+- `THINGS_AUTH_TOKEN`: URL-scheme token, **required by `update*`**. Set via `things auth` steps.
+- `THINGSDB`: override the path to the Things SQLite database (same as `--db=PATH`).
 
 ## Read commands (SQLite, read-only)
 
@@ -56,7 +56,7 @@ Apply to `tasks`, `today`, `upcoming`, `search`, and the other list views:
 | `--area=<title or ID>` | Filter by area |
 | `--tag=<title or ID>` | Filter by tag |
 | `--search=<text>` | Case-insensitive substring on title/notes |
-| `--query=<expr>` | Rich query: boolean ops, fields, regex — e.g. `title:/deploy/ AND tag:work` |
+| `--query=<expr>` | Rich query: boolean ops, fields, regex, e.g. `title:/deploy/ AND tag:work` |
 | `--limit=N` / `--offset=N` | Paginate (limit `0` = no limit; default 200) |
 | `--created-after` / `--created-before` | `YYYY-MM-DD` or RFC3339 |
 | `--modified-after` / `--modified-before` | `YYYY-MM-DD` or RFC3339 |
@@ -68,7 +68,7 @@ Apply to `tasks`, `today`, `upcoming`, `search`, and the other list views:
 Default table columns: `UUID  TITLE  PROJECT  AREA  HEADING  STATUS  TRASHED`. The **UUID** is
 the stable handle for `update`/`delete --id=`.
 
-## Add commands (URL scheme — no token)
+## Add commands (URL scheme, no token)
 
 ```
 things add [OPTIONS...] [--] [-|TITLE]
@@ -94,7 +94,7 @@ rest become notes (notes from STDIN take precedence over `--notes`).
 | `--repeat-every=N`, `--repeat-mode=schedule\|after-completion`, `--repeat-until`, `--repeat-clear` | Recurrence tuning |
 | `--show-quick-entry` | Open the quick-entry dialog prepopulated instead of adding silently |
 
-## Update commands (URL scheme — **token required**)
+## Update commands (URL scheme, **token required**)
 
 ```
 things update --id=<UUID> [OPTIONS...]
@@ -115,7 +115,7 @@ Completing a todo is `update --completed` (there is no separate `complete` comma
 | `--yes` | Confirm a bulk (query-filtered) update |
 | `--allow-unsafe-title` | Allow titles that look like `key=value` |
 
-## Delete commands (AppleScript — Automation permission)
+## Delete commands (AppleScript, Automation permission)
 
 ```
 things delete --id=<UUID> --confirm=<UUID>     # non-interactive single

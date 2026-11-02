@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""repo-health — read-only weekly sweep over ~/code repos.
+"""repo-health: read-only weekly sweep over ~/code repos.
 
 Never writes to any repo. Only output is REPO-HEALTH.md at the root of the
 code dir (which is not itself a git repo).
@@ -28,18 +28,18 @@ MAX_DEPTH = 3             # tier keys are depth 1-2; 3 catches strays
 TOP_FILES = 5             # dirty files shown per repo
 
 # Agent identities in a Co-authored-by trailer. ponytail: match the identity,
-# not the trailer key — real humans co-author too, and their trailers stay.
+# not the trailer key, real humans co-author too, and their trailers stay.
 AGENT_RE = re.compile(
     r"noreply@anthropic\.com|\bcopilot\b|\bdevin\b|\bcursor\b|\bcodex\b",
     re.I)
 
 # GIT_OPTIONAL_LOCKS=0 keeps `git status` from opportunistically rewriting
-# .git/index — that is what makes this sweep genuinely read-only.
+# .git/index, that is what makes this sweep genuinely read-only.
 ENV = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"}
 
 
 def git(repo, *args, timeout=GIT_TIMEOUT, err=False):
-    """Run a git command. Returns (ok, stdout) — or (ok, stderr) if err=True."""
+    """Run a git command. Returns (ok, stdout), or (ok, stderr) if err=True."""
     try:
         p = subprocess.run(
             ["git", "--no-optional-locks", "-c", "core.quotepath=off",
@@ -104,12 +104,12 @@ def check(root, rel, tier, network, stale_days):
 
     ok, log = git(repo, "log", "-1", "--format=%H %ct")
     if not ok:
-        # ponytail: no `git fsck` — too slow for a weekly sweep. The stderr
+        # ponytail: no `git fsck`, too slow for a weekly sweep. The stderr
         # line already distinguishes "missing refs/" from "bad object".
         _, why = git(repo, "log", "-1", err=True)
         why = (why.splitlines() or ["unknown"])[0].removeprefix("fatal: ")
         r["broken"] = why
-        r["notes"].append(f"**BROKEN** git state — {why}")
+        r["notes"].append(f"**BROKEN** git state, {why}")
         r["score"] = 1000
         return r
     r["last_commit"] = int(log.split()[1]) if len(log.split()) > 1 else 0
@@ -172,7 +172,7 @@ def check(root, rel, tier, network, stale_days):
                           ", ".join(sorted(stale)[:3]))
         r["score"] += len(stale)
 
-    # Baseline files — only expected of tiered repos. ponytail: untiered repos
+    # Baseline files, only expected of tiered repos. ponytail: untiered repos
     # are scratch until the user tiers them; nagging them buries the real signal.
     missing = []
     if tier != "untiered":
@@ -204,7 +204,7 @@ def check(root, rel, tier, network, stale_days):
                 r["score"] += 20
 
     # agent co-author trailers. One pass gives both the count and how many
-    # humans ever committed here — history is only safe to rewrite when nobody
+    # humans ever committed here, history is only safe to rewrite when nobody
     # else has a clone, and "one author ever" is the cheapest proxy for that.
     ok, log = git(repo, "log", "--format=%ae\t%(trailers:key="
                   "Co-authored-by,valueonly,separator=%x2C)")
@@ -225,7 +225,7 @@ def check(root, rel, tier, network, stale_days):
                               f"{len(authors)} committer(s)")
             r["score"] += 1
 
-    # dependency manifest presence — feeds the /repo-deps nomination
+    # dependency manifest presence, feeds the /repo-deps nomination
     # ponytail: root-level manifests only, no recursive monorepo walk.
     r["deps"] = [n for n in ("package.json", "Cargo.toml", "requirements.txt",
                              "pyproject.toml", "go.mod")
@@ -238,7 +238,7 @@ def check(root, rel, tier, network, stale_days):
 def nominate(results):
     """Top 5 actions. ponytail: a scored heuristic, not a planner. Claude re-ranks.
 
-    Broken repos and dead remotes each collapse into ONE entry — 21 broken repos
+    Broken repos and dead remotes each collapse into ONE entry, 21 broken repos
     would otherwise eat every slot and the section would say nothing useful.
     """
     out = []
@@ -248,7 +248,7 @@ def nominate(results):
         names = ", ".join(f"`{r['repo']}`" for r in broken[:3])
         out.append((None, "manual repair",
                     f"{len(broken)} repo(s) with broken git state ({names}"
-                    f"{', …' if len(broken) > 3 else ''}) — no routine can run on "
+                    f"{', …' if len(broken) > 3 else ''}), no routine can run on "
                     f"them; the findings table has the per-repo cause"))
     if dead:
         out.append((None, "manual repair",
@@ -271,7 +271,7 @@ def nominate(results):
         elif r.get("deps"):
             cmd, why = "/repo-deps", "has " + ", ".join(r["deps"]) + "; churn suggests drift"
         else:
-            cmd, why = "/repo-deep", "clean baseline, active — good rotation candidate"
+            cmd, why = "/repo-deep", "clean baseline, active, good rotation candidate"
         if r.get("dirty"):
             why += f"; {len(r['dirty'])} dirty file(s) to triage first"
         out.append((r, cmd, why))
@@ -283,7 +283,7 @@ def render(results, untiered, unversioned_dirs, root, network, elapsed):
     n = lambda k: sum(1 for r in results if r.get(k))
     now = datetime.now(timezone.utc).astimezone()
 
-    L = [f"# Repo health — {now:%Y-%m-%d}", ""]
+    L = [f"# Repo health: {now:%Y-%m-%d}", ""]
     L += [f"Read-only sweep of `{root}` · {len(results)} repos in "
           f"{elapsed:.1f}s · network checks "
           f"{'on' if network else 'off (`--network` to enable)'}", ""]
@@ -309,7 +309,7 @@ def render(results, untiered, unversioned_dirs, root, network, elapsed):
             L.append(f"| `{r['repo']}` | {r['tier']} | " +
                      "; ".join(r["notes"]) + " |")
     else:
-        L.append("Nothing to report — every swept repo is clean.")
+        L.append("Nothing to report, every swept repo is clean.")
     L.append("")
 
     if untiered:
@@ -344,7 +344,7 @@ def render(results, untiered, unversioned_dirs, root, network, elapsed):
     if picks:
         for i, (r, cmd, why) in enumerate(picks, 1):
             target = f" {r['repo']}" if r else ""
-            L.append(f"{i}. **`{cmd}{target}`** — {why}")
+            L.append(f"{i}. **`{cmd}{target}`**, {why}")
     else:
         L.append("Nothing pressing. Skip a week.")
     L.append("")

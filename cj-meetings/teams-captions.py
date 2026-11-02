@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""teams-captions — mirror Microsoft Teams live captions into a transcript file.
+"""teams-captions: mirror Microsoft Teams live captions into a transcript file.
 
 The CAPTURE half of the /cj-meetings skill. Polls the popped-out Teams
 "Captions" window through the macOS accessibility API and keeps a markdown
@@ -12,7 +12,7 @@ One prerequisite the user must satisfy, in the meeting, before this runs:
 The panel may stay docked in the meeting window or be popped out; the same
 container is read either way.
 
-Stdlib only — the accessibility API is plain C, so ctypes reaches it without
+Stdlib only; the accessibility API is plain C, so ctypes reaches it without
 pyobjc and this runs on the /usr/bin/python3 every Mac already has. Nothing to
 install.
 
@@ -22,7 +22,7 @@ against a live meeting:
   * Teams is a WebView2 (Chromium) app and materialises its accessibility tree
     LAZILY, tearing it down when no assistive technology has asked for a while.
     A cold read returns a window with zero children. Nothing can force this on
-    demand — AXManualAccessibility, the documented Electron opt-in, is
+    demand; AXManualAccessibility, the documented Electron opt-in, is
     unsupported here (-25205). What keeps the tree alive is simply asking
     repeatedly, which the poll loop does; a cold start just needs a few
     seconds, hence the retry in check().
@@ -167,7 +167,7 @@ def caption_root(app, anchor):
 
     Anchored on the caption container's accessibility description rather than
     on a popped-out window's title, because the same container exists whether
-    captions are docked inside the meeting window or popped out — so neither
+    captions are docked inside the meeting window or popped out, so neither
     layout needs special handling, and the user does not have to pop the panel
     out at all.
 
@@ -203,7 +203,7 @@ def caption_root(app, anchor):
 def read_pairs(root):
     """Visible caption entries as [(speaker, text), ...], oldest first.
 
-    Each entry is an AXGroup holding exactly two AXStaticText children —
+    Each entry is an AXGroup holding exactly two AXStaticText children:
     speaker name, then caption text. Matching on that shape is what makes
     this robust: the window also contains loose static texts (the tenant
     name, and transient tooltips like "Window is pinned") which appear and
@@ -274,8 +274,8 @@ def merge(hist, visible, stamp):
     and the START of the window, then replaces that overlap with the window's
     authoritative text. Unrevised lines keep their original timestamp.
 
-    Anchoring on the tail specifically — rather than the best match anywhere in
-    `hist` — is what makes a repeated utterance safe. A bare "OK." after a
+    Anchoring on the tail specifically, rather than the best match anywhere in
+    `hist`, is what makes a repeated utterance safe. A bare "OK." after a
     silence matches some "OK." from twenty minutes ago, and treating that as
     the anchor would delete everything said in between.
 
@@ -318,7 +318,7 @@ LINE = re.compile(r"^\*\*(\d\d:\d\d) (.+?):\*\* (.*)$")
 def load(path):
     """Existing transcript as (started, hist), so a restart RESUMES it.
 
-    Capture dies for boring reasons mid-meeting — a stray signal, a laptop
+    Capture dies for boring reasons mid-meeting: a stray signal, a laptop
     sleeping, the operator restarting it after Teams tore its a11y tree down.
     Starting fresh on the same --out would truncate everything said so far, and
     a meeting cannot be replayed. So the file is read back instead: parse the
@@ -340,7 +340,7 @@ def load(path):
 
 
 def write(path, hist, started):
-    """Rewrite the transcript atomically — a crash must not truncate it."""
+    """Rewrite the transcript atomically: a crash must not truncate it."""
     body = [f"<!-- teams-captions, started {started} -->\n\n"]
     body += [f"**{ts} {s}:** {t}\n" for ts, s, t in hist]
     tmp = f"{path}.tmp"
@@ -454,7 +454,7 @@ def check(app, anchor, tries=4):
         )
         return 1
     # A cold Chromium a11y tree reads as an empty window, and asking again is
-    # the only thing that wakes it — so never judge emptiness on one read.
+    # the only thing that wakes it, so never judge emptiness on one read.
     for attempt in range(tries):
         pairs = read_pairs(root)
         if pairs:
@@ -465,7 +465,7 @@ def check(app, anchor, tries=4):
     for speaker, text in pairs[-5:]:
         print(f"  {speaker}: {text}")
     if not pairs:
-        print("  (nothing captioned yet — either nobody has spoken recently, "
+        print("  (nothing captioned yet, either nobody has spoken recently, "
               "or Teams is still waking its accessibility tree; capture will "
               "pick lines up as they appear)")
     return 0
@@ -520,7 +520,7 @@ def gone_step(gone, seen_panel, found, limit):
 def capture(app, anchor, path, interval, gone_limit, blind_limit, frozen_limit):
     started, hist = load(path)
     if hist:
-        print(f"teams-captions: resuming {path} — {len(hist)} line(s) already there")
+        print(f"teams-captions: resuming {path}, {len(hist)} line(s) already there")
     started = started or datetime.now().strftime("%Y-%m-%d %H:%M")
     gone, root, reason = 0, None, "interrupted"
 
@@ -532,7 +532,7 @@ def capture(app, anchor, path, interval, gone_limit, blind_limit, frozen_limit):
     # process ends, where a warning on stdout would sit unread.
     #
     # `blind` only counts polls where the panel was FOUND but yielded nothing,
-    # and only after the panel has produced at least one entry — a meeting where
+    # and only after the panel has produced at least one entry, a meeting where
     # nobody has spoken yet reads empty for legitimate reasons.
     blind, seen_any = 0, False
     frozen, last = 0, None
@@ -555,7 +555,7 @@ def capture(app, anchor, path, interval, gone_limit, blind_limit, frozen_limit):
             if app is None:
                 app = teams_app(wait=True)
             # The cached root survives re-renders, so only re-scan when it
-            # stops yielding — a full tree walk every poll would be wasteful.
+            # stops yielding; a full tree walk every poll would be wasteful.
             pairs = read_pairs(root) if root is not None else []
             if not pairs and app is not None:
                 root = caption_root(app, anchor)
@@ -584,11 +584,11 @@ def capture(app, anchor, path, interval, gone_limit, blind_limit, frozen_limit):
             time.sleep(interval)
     except KeyboardInterrupt:
         print()
-    print(f"teams-captions: stopped ({reason}) — {len(hist)} line(s) in {path}")
+    print(f"teams-captions: stopped ({reason}), {len(hist)} line(s) in {path}")
     print("teams-captions: rerun with the same --out to resume; it will not truncate")
     if reason == "panel found but reading empty":
         secs = int(blind_limit * interval)
-        print(f"teams-captions: WARNING — nothing captured for {secs}s while the "
+        print(f"teams-captions: WARNING, nothing captured for {secs}s while the "
               f"caption panel was still open. Usually the a11y tree went cold.")
         print("teams-captions: ask the user to close and re-pop the captions "
               "panel, then rerun with the same --out.")
@@ -734,7 +734,7 @@ def demo():
     # entries scrolling off the top do not resurrect or duplicate
     merge(h, [("K", "b"), ("K", "c"), ("K", "d")], "10:02")
     assert texts(h) == ["a", "b", "c", "d"], texts(h)
-    # genuine repeats are kept — a dedupe-by-value scheme would drop one
+    # genuine repeats are kept; a dedupe-by-value scheme would drop one
     merge(h, [("K", "d"), ("K", "Ja."), ("K", "Ja.")], "10:03")
     assert texts(h) == ["a", "b", "c", "d", "Ja.", "Ja."], texts(h)
     # captions clearing on silence must not wipe the transcript
@@ -813,7 +813,7 @@ def demo():
     assert not same_entry(("K", "Ja."), ("K", "Nei."))
     assert not same_entry(("K", "Hei."), ("O", "Hei."))  # different speaker
 
-    # a restart must RESUME the transcript, never truncate it — the bug that
+    # a restart must RESUME the transcript, never truncate it, the bug that
     # ate the first 12 minutes of a real meeting
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "t.md")

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""repo-deep — tier resolution + repo selection for ONE deep code-quality pass.
+"""repo-deep: tier resolution + repo selection for ONE deep code-quality pass.
 
 The SELECTION half of /repo-deep. This is the *most expensive* routine in the
 repo-routine family, so it is strictly one repo at a time and never batched. The
 script does the cheap, deterministic part: resolve the target's tier from
-`.repo-tiers.json`, refuse the out-of-scope tiers, detect the stack, and — when
-called with no arg — nominate the next candidate from REPO-HEALTH.md.
+`.repo-tiers.json`, refuse the out-of-scope tiers, detect the stack, and, when
+called with no arg, nominate the next candidate from REPO-HEALTH.md.
 
-Everything with judgement — the ponytail-audit, the code-review sweep, the
-test-gap read, deciding WHICH findings to apply, and the writes — is done by
+Everything with judgement, the ponytail-audit, the code-review sweep, the
+test-gap read, deciding WHICH findings to apply, and the writes, is done by
 Claude per SKILL.md, exactly like repo-groom/repo-deps split the script (facts)
 from the skill (writes). This script never touches a target repo.
 
@@ -31,7 +31,7 @@ REFUSE_TIERS = {"W-ro", "archive", "external"}
 
 
 # ponytail: load_tiers/resolve/detect_stack copied verbatim from repo-groom.py.
-# Style is per-skill duplication, not a shared import — each skill symlinks
+# Style is per-skill duplication, not a shared import, each skill symlinks
 # individually into ~/.claude/skills, so a cross-skill import would dangle.
 def load_tiers(root):
     f = root / ".repo-tiers.json"
@@ -99,7 +99,7 @@ def has_tests(repo):
 
 def suggest_effort(repo):
     """Scale the code-review effort by rough repo size. Default medium."""
-    # ponytail: count source files, not lines — good enough to pick an effort tier.
+    # ponytail: count source files, not lines, good enough to pick an effort tier.
     exts = (".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".go", ".cs")
     n = 0
     for f in repo.rglob("*"):
@@ -120,7 +120,7 @@ def nominate(root, tiers):
 
     Prefer an explicit `/repo-deep <repo>` line in REPO-HEALTH.md's Top actions.
     If none (repo-health only nominates repo-deep for clean-baseline repos, so
-    the Top 5 often has none), DERIVE one: a tiered, non-refused repo — flagged
+    the Top 5 often has none), DERIVE one: a tiered, non-refused repo, flagged
     for the user to confirm, never auto-run.
     """
     report = root / "REPO-HEALTH.md"
@@ -135,12 +135,12 @@ def nominate(root, tiers):
             return {"nominee": key, "tier": tiers.get(key),
                     "source": "REPO-HEALTH.md Top actions (explicit /repo-deep line)",
                     "confirm": True}
-    # ponytail: no full parse of the findings table — just fall back to the first
+    # ponytail: no full parse of the findings table, just fall back to the first
     # non-refused tiered repo as a *suggestion*. Claude re-ranks with judgement.
     for key, tier in tiers.items():
         if tier not in REFUSE_TIERS:
             return {"nominee": key, "tier": tier,
-                    "source": ("derived — REPO-HEALTH.md has no explicit /repo-deep "
+                    "source": ("derived, REPO-HEALTH.md has no explicit /repo-deep "
                                "nomination; CONFIRM with user before running"),
                     "confirm": True}
     return {"nominee": None, "tier": None,
@@ -151,7 +151,7 @@ def nominate(root, tiers):
 COMMIT_POLICY = {
     "S-priv": "commit + push OK",
     "S-pub": "commit + push OK; releases/tags need approval",
-    "W": "NEW BRANCH + local commits only — user pushes/PRs",
+    "W": "NEW BRANCH + local commits only, user pushes/PRs",
 }
 
 
@@ -170,7 +170,7 @@ def main():
         if a.json:
             print(json.dumps(nom, indent=2))
             return
-        print("NO ARG — nominating the next repo for a deep pass:\n")
+        print("NO ARG, nominating the next repo for a deep pass:\n")
         if nom["nominee"]:
             print(f"  nominee: {nom['nominee']}  (tier {nom['tier']})")
         else:
@@ -187,10 +187,10 @@ def main():
     if not repo.is_dir():
         plan["refuse"] = f"not a directory: {repo}"
     elif tier is None:
-        plan["refuse"] = ("untiered — add it to .repo-tiers.json first "
+        plan["refuse"] = ("untiered, add it to .repo-tiers.json first "
                           "(pick S-priv/S-pub/W); untiered repos are scratch")
     elif tier in REFUSE_TIERS:
-        plan["refuse"] = f"tier {tier} — NEVER deep-pass (report-only / out of scope)"
+        plan["refuse"] = f"tier {tier}, NEVER deep-pass (report-only / out of scope)"
 
     if plan["refuse"] is None:
         plan["stack"] = detect_stack(repo)
@@ -207,7 +207,7 @@ def main():
         print(f"\nREFUSE: {plan['refuse']}")
         return
     print(f"stack: {plan['stack']}")
-    print(f"tests: {'present' if plan['has_tests'] else 'NONE FOUND — flag test gap'}")
+    print(f"tests: {'present' if plan['has_tests'] else 'NONE FOUND, flag test gap'}")
     print(f"code-review effort (suggested): {plan['suggested_effort']}  (default medium; user may override)")
     print(f"commit: {plan['commit_policy']}")
 
