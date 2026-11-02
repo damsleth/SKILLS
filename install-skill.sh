@@ -63,9 +63,9 @@ while IFS= read -r f; do [ -n "$f" ] && CONFIG_FOLDERS+=("$f"); done < <(config_
 # ── Discover skills (subfolders containing SKILL.md) ──
 #
 # One flat list of entries. Kinds:
-#   group — a folder header row (path in SKILL_PATHS, no install state)
-#   link  — repo/config-folder skill, symlinked into TARGETS
-#   copy  — ~/.agents/skills library skill, copied into COPY_TARGETS
+#   group: a folder header row (path in SKILL_PATHS, no install state)
+#   link : repo/config-folder skill, symlinked into TARGETS
+#   copy : ~/.agents/skills library skill, copied into COPY_TARGETS
 # SKILL_GROUP[i] is the index of the group header a skill belongs to
 # (a header points at itself).
 
@@ -140,7 +140,7 @@ done
 
 # The "all skills" library: real directories in ~/.agents/skills (enabled)
 # and ~/.agents/skills-unused (disabled). Symlinks inside ~/.agents/skills
-# are repo skills mirrored there via TARGETS above — never listed here.
+# are repo skills mirrored there via TARGETS above; never listed here.
 add_group "All skills" "$AGENTS_SKILLS_DIR"
 for d in "$AGENTS_SKILLS_DIR"/*/; do
     [ -L "${d%/}" ] && continue
@@ -215,9 +215,9 @@ skill_cli_uninstall() {
 # ── Check install state ──
 #
 # A skill can be in one of three states across its targets:
-#   full    — present in every target
-#   partial — present in some but not all targets
-#   none    — absent everywhere
+#   full   : present in every target
+#   partial: present in some but not all targets
+#   none   : absent everywhere
 #
 # The installer reconciles to the desired state on apply, so partial
 # installs get repaired (missing copies/symlinks get created) rather than
@@ -319,7 +319,7 @@ fuzzy_match() {
 }
 
 # Match rule for one skill: true fuzzy (subsequence) against the name alone
-# — good for typo/abbreviation search like "cjvd" -> cj-voice-dna — OR every
+# (good for typo/abbreviation search like "cjvd" -> cj-voice-dna) OR every
 # whitespace-separated word of the query is a literal substring somewhere in
 # the full haystack (name + description). Subsequence matching against a
 # whole paragraph matches almost any short query, so description search
@@ -418,7 +418,7 @@ restart_with_folders() {
 # Print one redraw line (same backslash color-code interpretation as
 # `echo -e`), then clear to end of line. Redrawing in place without a full
 # screen clear avoids flicker, but a shorter line doesn't erase whatever a
-# longer line left behind at the same row in the previous frame — this
+# longer line left behind at the same row in the previous frame; this
 # does, per line, without blanking the whole screen first.
 line() {
     printf '%b\033[K\n' "$1"
@@ -432,7 +432,7 @@ interactive_menu() {
     # installs) so the user sees them as installed; on apply we
     # reconcile to the desired state across all targets.
     # For "copy" kind skills, the source location is the ground truth for
-    # enabled/disabled instead — a freshly-enabled skill with zero copies
+    # enabled/disabled instead; a freshly-enabled skill with zero copies
     # yet should still show checked (it'll be synced on apply).
     local selected=()
     local actual_count=()
@@ -500,7 +500,7 @@ interactive_menu() {
         # One fork for both dimensions; needs the tty, not stdout.
         size="$(stty size </dev/tty 2>/dev/null)" && read -r term_rows term_cols <<< "$size"
         # Descriptions wrap to the full terminal width instead of being
-        # truncated, so item height varies — a 6-char indent is reserved.
+        # truncated, so item height varies; a 6-char indent is reserved.
         local text_width=$((term_cols - 6))
         [ "$text_width" -lt 20 ] && text_width=20
 
@@ -576,7 +576,7 @@ interactive_menu() {
         done
 
         # Redraw in place: move to home and overwrite in place rather than
-        # clearing first — clearing then redrawing paints a blank frame in
+        # clearing first: clearing then redrawing paints a blank frame in
         # between, which is what causes the visible flicker.
         printf '\033[H'
         line "${BOLD}Skill Manager${RESET}  ${DIM}($SCRIPT_DIR)${RESET}"
@@ -589,7 +589,7 @@ interactive_menu() {
                 line "  ${RED}${status_msg}${RESET}"
                 status_msg=""
             elif [ -n "$filter_query" ]; then
-                line "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es) — esc to clear)${RESET}"
+                line "  ${DIM}filter:${RESET} ${filter_query} ${DIM}(${visible_count} match(es), esc to clear)${RESET}"
             else
                 line "${DIM}a add skills folder  ·  ctrl+d remove folder (on a folder header)${RESET}"
             fi
@@ -691,13 +691,13 @@ interactive_menu() {
                 summary="${summary}${sep}${p}"
                 sep=", "
             done
-            line "  ${summary}  ${DIM}— press enter to apply${RESET}"
+            line "  ${summary}  ${DIM}press enter to apply${RESET}"
         else
             line "  ${DIM}No changes${RESET}"
         fi
 
         # Erase any leftover content below this frame (e.g. the previous
-        # frame had more lines — toggling descriptions off, or a filter
+        # frame had more lines: toggling descriptions off, or a filter
         # narrowing the list, both shrink the frame).
         printf '\033[J'
 
@@ -706,14 +706,14 @@ interactive_menu() {
 
         if [ "$filter_mode" = "1" ]; then
             case "$key" in
-                '')  # Enter — commit filter, resume navigation
+                '')  # Enter: commit filter, resume navigation
                     filter_mode=0
                     ;;
                 $'\x7f'|$'\x08')  # Backspace
                     filter_query="${filter_query%?}"
                     recompute_filter
                     ;;
-                $'\x1b')  # Esc — cancel typing and clear the filter
+                $'\x1b')  # Esc: cancel typing and clear the filter
                     filter_query=""
                     filter_mode=0
                     recompute_filter
@@ -735,7 +735,7 @@ interactive_menu() {
             B|j)  # Down / j
                 [ "$cursor_pos" -lt $((visible_count - 1)) ] && cursor_pos=$((cursor_pos + 1))
                 ;;
-            ' ')  # Space — toggle (a group header toggles all its skills)
+            ' ')  # Space: toggle (a group header toggles all its skills)
                 if [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ]; then
                     if group_all_selected "$cursor"; then set_group "$cursor" 0; else set_group "$cursor" 1; fi
                 elif [ "$cursor" -ge 0 ]; then
@@ -768,7 +768,7 @@ interactive_menu() {
                     restart_with_folders ${CONFIG_FOLDERS[@]+"${CONFIG_FOLDERS[@]}"} "$newdir"
                 fi
                 ;;
-            $'\x04')  # Ctrl+D — remove a config folder reference (not the folder)
+            $'\x04')  # Ctrl+D: remove a config folder reference (not the folder)
                 if [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ] && is_config_group "$cursor"; then
                     local yn
                     printf '\n  Remove %s from the skills-folder list? [y/N] ' "${SKILL_PATHS[$cursor]}"
@@ -788,7 +788,7 @@ interactive_menu() {
             /)    # Enter filter mode (keeps any existing query to refine)
                 filter_mode=1
                 ;;
-            '')   # Enter — apply
+            '')   # Enter: apply
                 apply_changes
                 return
                 ;;
@@ -797,7 +797,7 @@ interactive_menu() {
                 echo "No changes made."
                 return
                 ;;
-            $'\x1b')  # Escape sequence — arrow key, or a lone Esc clears an active filter
+            $'\x1b')  # Escape sequence: arrow key, or a lone Esc clears an active filter
                 local rest1 rest2
                 if IFS= read -rsn1 -t 0.05 rest1 2>/dev/null && [ "$rest1" = "[" ]; then
                     IFS= read -rsn1 -t 0.05 rest2 2>/dev/null || true

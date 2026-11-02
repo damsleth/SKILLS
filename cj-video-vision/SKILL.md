@@ -1,6 +1,6 @@
 ---
 name: cj-video-vision
-description: Watch and analyze videos via the claude-video-vision MCP server — frame extraction, scene/silence/motion analysis, and audio transcription for local files and YouTube URLs. Use when the user mentions a video file (.mp4, .mov, .avi, .mkv, .webm), pastes a YouTube URL, asks to watch/analyze/review/summarize a video, or references video content in conversation. Also use to install or configure the video-vision MCP itself.
+description: Watch and analyze videos via the claude-video-vision MCP server, covering frame extraction, scene/silence/motion analysis, and audio transcription for local files and YouTube URLs. Use when the user mentions a video file (.mp4, .mov, .avi, .mkv, .webm), pastes a YouTube URL, asks to watch/analyze/review/summarize a video, or references video content in conversation. Also use to install or configure the video-vision MCP itself.
 ---
 
 # cj-video-vision
@@ -14,12 +14,12 @@ It handles local video files and YouTube URLs (downloaded via `yt-dlp`).
 
 The server exposes six tools, all prefixed `mcp__claude-video-vision__`:
 
-- `video_info` — metadata (duration, resolution, audio presence) without processing
-- `video_analyze` — structural analysis via ffmpeg filters (scene changes, silence, motion, freeze, blur, exposure, loudness, black intervals) + transcription
-- `video_watch` — extract frames + process audio; supports per-segment FPS/resolution
-- `video_detail` — drill into specific segments; extract many frames, view few
-- `video_configure` — change settings (backend, resolution, enable_index, …)
-- `video_setup` — check/install dependencies (ffmpeg, yt-dlp, whisper)
+- `video_info`: metadata (duration, resolution, audio presence) without processing
+- `video_analyze`: structural analysis via ffmpeg filters (scene changes, silence, motion, freeze, blur, exposure, loudness, black intervals) + transcription
+- `video_watch`: extract frames + process audio; supports per-segment FPS/resolution
+- `video_detail`: drill into specific segments; extract many frames, view few
+- `video_configure`: change settings (backend, resolution, enable_index, …)
+- `video_setup`: check/install dependencies (ffmpeg, yt-dlp, whisper)
 
 ## Boot
 
@@ -45,7 +45,7 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
    are missing, empty, or suspiciously incomplete.
 
 2. **REQUIRED for videos > 30s:** Call `video_analyze` BEFORE extracting any frames.
-   This is NOT optional — it gives you structural data to make smart extraction
+   This is NOT optional: it gives you structural data to make smart extraction
    decisions. Select filters relevant to the user's question:
 
    | User intent | Filters to select |
@@ -59,7 +59,7 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
    | "Summarize this lecture" | transcription, scene_changes, silence |
    | General / unclear intent | scene_changes, silence, transcription |
 
-   Always include `transcription: true` when the video has audio — the transcription
+   Always include `transcription: true` when the video has audio. The transcription
    tells you WHERE to look visually.
 
 3. Use the analysis results and transcription to plan frame extraction:
@@ -67,10 +67,10 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
    - Higher FPS (1-3) only around scene changes, motion peaks, or moments
      referenced in speech ("look at this", "as you can see", "let me show you")
    - Never exceed the minimum FPS needed for the task
-   - Prefer fewer segments at lower FPS — you can always drill deeper
+   - Prefer fewer segments at lower FPS; you can always drill deeper
 
 4. Call `video_watch` to extract frames:
-   - **Short videos (< 2 minutes):** use `fps: "auto"` without `view_sample` — short
+   - **Short videos (< 2 minutes):** use `fps: "auto"` without `view_sample`: short
      videos need full coverage to avoid missing brief moments
    - **Long videos (> 2 minutes):** use `segments` based on analysis data with
      variable FPS, and `view_sample` to limit initial frame count
@@ -79,7 +79,7 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
    - Start with 3-5 second windows around points of interest
    - Use `view_sample: 3` to preview (first, middle, last frame)
    - Then request specific timestamps with `view` if you need more detail
-   - Treat frame viewing like a binary search — never view all extracted frames at once
+   - Treat frame viewing like a binary search. Never view all extracted frames at once
 
 6. On follow-up questions about the same video, consult the manifest already in
    context. Do not re-extract or re-view frames you already have at the same
@@ -93,7 +93,7 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
   reading on-screen text or fine details.
 - **segments:** Use when you have analysis data. Each segment can have its own fps
   and resolution. Overrides global fps/start_time/end_time.
-- **view_sample:** Returns N evenly spaced frames from the extracted set — use it to
+- **view_sample:** Returns N evenly spaced frames from the extracted set. Use it to
   avoid flooding context with images.
 - **skip_audio:** Set true when you only need visual analysis.
 - **YouTube URLs:** Pass directly as `path`. Treat
@@ -104,12 +104,12 @@ YouTube; a whisper backend for transcription). Config and frame cache honor
 
 You receive:
 
-- **Manifest** (when enable_index is on) — index of all cached frames by resolution
+- **Manifest** (when enable_index is on): index of all cached frames by resolution
   and timestamp; use it to avoid redundant requests
-- **Frames** as images — look at them to understand what happens visually
-- **Audio transcription** with timestamps — read the speech content
-- **Audio tags** — non-speech events (music, sounds, …)
-- **Analysis data** — scene changes, silence intervals, motion levels, …
+- **Frames** as images: look at them to understand what happens visually
+- **Audio transcription** with timestamps: read the speech content
+- **Audio tags**: non-speech events (music, sounds, …)
+- **Analysis data**: scene changes, silence intervals, motion levels, …
 
 Combine all sources: the analysis and transcription tell you WHEN things happen;
 the frames tell you WHAT happens.

@@ -175,6 +175,17 @@ for skill_file in "${skill_files[@]}"; do
     done
 done
 
+# ── Check 7: em dashes (U+2014) in any tracked file ──
+# The voice profile bans them in prose, and they leak into code comments and
+# output strings too. Write "em dash" or "U+2014" when a doc must name it.
+
+echo ""
+echo "• em dashes"
+if matches="$(git ls-files -z | xargs -0 grep -n $'\xe2\x80\x94' -- 2>/dev/null || true)" && [ -n "$matches" ]; then
+    report "$(wc -l <<<"$matches" | tr -d ' ') line(s) contain an em dash (U+2014)"
+    while IFS= read -r line; do detail "$line"; done <<<"$(head -20 <<<"$matches")"
+fi
+
 echo ""
 if [ $fail -eq 0 ]; then
     echo -e "${GREEN}✓${RESET} All checks passed"

@@ -1,6 +1,6 @@
 ---
 name: cj-ambition
-description: Raise the ambition of the current task along one axis before executing it — altitude (zoom out to the goal beyond the goal), depth (deeper not bigger, the way the best in the field would), or range (bring in other disciplines, assemble the crew). Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", or "/cj-ambition <axis>".
+description: Raise the ambition of the current task along one axis before executing it. Altitude zooms out to the goal beyond the goal, depth goes deeper the way the best in the field would, range brings in other disciplines and assembles the crew. Use when the user says "be more ambitious", "zoom out", "go deeper", "bring in other fields", or "/cj-ambition <axis>".
 ---
 
 # Ambition
@@ -12,7 +12,7 @@ by Felix Rieseberg. Speed (same work, less time) is the default already and gets
 Pick the axis from the argument (`altitude`, `depth`, `range`). No argument: pick by the tells
 below and say which one you picked. One axis per pass; stack passes if the user asks.
 
-## Altitude — the goal beyond the goal
+## Altitude: the goal beyond the goal
 
 The task as given is the user's best guess at how to reach an outcome. Work on the outcome.
 
@@ -31,7 +31,7 @@ crash. Creative work resists altitude; leave it alone there.
 
 Done when the rewrite names the outcome, the next action it unlocks, and the loop.
 
-## Depth — deeper, not bigger
+## Depth: the expert's method
 
 Do the task the way a field-leading expert would, touching the raw material and the real
 instruments, until the expert would learn something from the result.
@@ -39,13 +39,13 @@ instruments, until the expert would learn something from the result.
 Tell: the first draft reached for a summary, a markdown table, or expert vocabulary without
 expert method.
 
-Answer four questions, then rewrite the task to ask for exactly that:
+Answer 4 questions, then rewrite the task to ask for exactly that:
 
 1. What would a top professional in this field do here that is not being asked for?
 2. What is the rawest material they would start from, instead of what has been digested
    already? Get that material.
 3. Which specific methods and tools would they use? Use those: a database and a statistical
-   model, not a table; a simulation, not a guess. Install what is missing.
+   model instead of a table, a simulation instead of a guess. Install what is missing.
 4. What, other than the agent or the user, shows the result is right? Name a runnable
    external check before starting. Self-review is not verification.
 
@@ -56,25 +56,25 @@ Techniques while executing:
 - **Challenge what is believed.** "We think churn is an onboarding problem": reproduce that
   from raw data, adversarially.
 - **Produce new knowledge** once inside the data: build a model that reproduces last year,
-  find the earliest signal nobody has named, show it predicts on unseen data.
+  find the earliest signal no one has named yet, show it predicts on unseen data.
 
-Done when the rewrite names the raw source, the instrument, and the external judge. Three
+Done when the rewrite names the raw source, the instrument, and the external judge. 3
 named things, or it is not depth.
 
-## Range — assemble the crew
+## Range: assemble the crew
 
 Look at the task from more fields than would have been economical before.
 
 Tell: the task is being done entirely inside its home discipline.
 
-1. **Replace the nouns with verbs.** A QBR is not "a deck"; it is "getting busy people to
+1. **Replace the nouns with verbs.** A QBR is "getting busy people to
    believe a story about cause and effect and decide under uncertainty in 30 minutes". The
    verbs reveal which fields have something to say.
 2. **Assemble the crew.** Earth depends on this task; who does humanity send? For a deck:
    an analyst, a journalist, an editor, a motion designer; for a red team: a short seller and
-   a forensic accountant. Two to four fields, each with the concrete method it contributes.
-3. **Perform the method, not the role.** Do what a short seller does to research a position;
-   the transcript stays in the agent's own voice. A transcript that reads like roleplay is
+   a forensic accountant. 2 to 4 fields, each with the concrete method it contributes.
+3. **Perform the field's method.** Do what a short seller does to research a position, and keep
+   the transcript in the agent's own voice. A transcript that reads like roleplay is
    the failure signal. Subagents per field are fine when the methods are independent.
 
 Done when the rewrite lists the verbs, the fields, and one concrete technique per field.

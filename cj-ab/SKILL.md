@@ -1,6 +1,6 @@
 ---
 name: cj-ab
-description: Agent bridge — hand one task (plus an optional file) to another coding agent (claude, codex, copilot) via the bundled `agent-bridge` CLI and get its answer back. Use when the user says "send this to codex/claude/copilot", "ask codex", "/cj-ab"; to delegate a self-contained subtask to an agent better suited for it; to get a second opinion or cross-check your own answer, review or diff; to translate code between languages or syntaxes; or to get an alternative draft to compare against yours.
+description: Agent bridge, hand one task (plus an optional file) to another coding agent (claude, codex, copilot) via the bundled `agent-bridge` CLI and get its answer back. Use when the user says "send this to codex/claude/copilot", "ask codex", "/cj-ab"; to delegate a self-contained subtask to an agent better suited for it; to get a second opinion or cross-check your own answer, review or diff; to translate code between languages or syntaxes; or to get an alternative draft to compare against yours.
 ---
 
 # cj-ab (agent bridge)
@@ -41,7 +41,7 @@ Torn between light and medium, take medium; torn between medium and heavy, stay 
 
 - **Timeout.** A call takes 1 to 5 minutes, longer on `heavy`. Set the shell tool's timeout to 10 minutes (600000 ms), or use the shell tool's own background mode, which keeps the output and reports completion. With a plain `&`, redirect stdout and stderr to a file and wait on the process before reading it.
 - **Full access.** The target runs with no sandbox and no approval prompts: it can edit files, run commands and reach the network in your working directory. Say in the prompt whether you want edits made or only an answer back, and review `git diff` after a call that edits.
-- **One hop.** The bridge refuses a call made from inside a bridged agent. The guard is an inherited env var, so it stops accidental ping-pong, not a child set on delegating.
+- **One hop.** The bridge refuses a call made from inside a bridged agent. The guard is an inherited env var, so it stops accidental ping-pong only.
 - **Cancellation.** Killing the bridge (timeout, Ctrl-C) takes the target's whole process tree down with it.
 - **Failures.** Errors start with `[agent-bridge]` on stderr: bad usage, an unreadable file, or a CLI missing from PATH. The bridge passes the target's own errors and exit code through as-is.
 

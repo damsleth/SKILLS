@@ -73,7 +73,7 @@ When the user asks an investigative question mid-capture ("why is X missing?") t
 
 - Load the cj-voice-dna skill before every write, whatever the note's length, if installed. Also read `{ledger}/01_identity/id__voice_dna.md` (`{ledger}` as resolved in *Ledger sync*) when it exists.
 - Write in the language the user opened with, and stay in it unless they switch. When ambiguous, default to Norwegian (Bokmål) unless the overlay names another. Frontmatter keys, paths and tags stay in English.
-- **Typography**: wherever a dash is wanted (note body, log lines, task titles, chat replies), write the spaced en-dash (` – `). The em-dash (`—`) is the clearest tell of machine-written text; recast with a comma, colon, parenthesis or two sentences, and check the text for it before writing to disk. The rule holds even when cj-voice-dna fails to load. Other skills that write into the vault point here.
+- **Typography**: wherever a dash is wanted (note body, log lines, task titles, chat replies), write the spaced en dash (` – `). The em dash (U+2014) is the clearest tell of machine-written text; recast with a comma, colon, parenthesis or two sentences, and check the text for it before writing to disk. The rule holds even when cj-voice-dna fails to load. Other skills that write into the vault point here.
 - Concise and scannable: practical headings, and the decisions, next steps, owners and dates the input carries.
 
 ### 5. Sync durable items

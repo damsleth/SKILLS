@@ -1,6 +1,6 @@
 ---
 name: cj-things
-description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI — full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or needs the Things-only detail (logbook, tags, queries) that the cross-surface view leaves out. For what's open across relevant task surfaces, use cj-now instead. Pairs with cj-notes to turn captured notes into real tasks.
+description: Manage Things 3 (Cultured Code) tasks, projects, and areas from the terminal via the `things` CLI, with full CRUD plus the standard read views (today, upcoming, inbox, deadlines, logbook) with JSON output. Use when the user wants to add / list / complete / update / delete a Things task or project, capture a todo into Things, or needs the Things-only detail (logbook, tags, queries) that the cross-surface view leaves out. For what's open across relevant task surfaces, use cj-now instead. Pairs with cj-notes to turn captured notes into real tasks.
 ---
 
 # cj-things
@@ -30,10 +30,10 @@ macOS only. Run `things help <command>` for the authoritative flag list, or read
 ```bash
 command -v things        # the fork, installed from damsleth/things3-cli
 things --version         # CLI + detected Things.app version
-things auth              # token status — required only for `update*`
+things auth              # token status, required only for `update*`
 ```
 
-If `things` is missing, say so and stop — don't fabricate task data. If a read errors with a
+If `things` is missing, say so and stop. Do not fabricate task data. If a read errors with a
 database/permission message, the terminal likely lacks Full Disk Access; tell the user to
 grant it in System Settings → Privacy & Security → Full Disk Access.
 
@@ -71,7 +71,7 @@ and `--no-header` to drop the column header.
 ### JSON for programmatic use
 
 When another skill (or you) needs to *parse* the output rather than show it, add `--json`.
-This is the integration backbone — prefer it over scraping the table:
+This is the integration backbone. Prefer it over scraping the table:
 
 ```bash
 things today --json
@@ -79,14 +79,14 @@ things tasks --project="Work" --json
 things show --id=<UUID> --json
 ```
 
-**Gotcha:** `show --json` returns a *sparse* object — unset and most non-core fields
+**Gotcha:** `show --json` returns a *sparse* object: unset and most non-core fields
 are omitted entirely, so `jq '.deadline'` yields `null` whether the field was cleared
 or never serialized. Fine for existence/title lookup; to **verify a field update**,
 read back via `things tasks --search/--query --json` or the matching view
 (`deadlines`, `upcoming`, …), which emit the full task shape.
 
 Default table output uses columns `UUID  TITLE  PROJECT  AREA  HEADING  STATUS  TRASHED`.
-The **UUID** is the stable handle — capture it from a read, then pass it to `update`/`delete`
+The **UUID** is the stable handle. Capture it from a read, then pass it to `update`/`delete`
 via `--id=`. Never guess a UUID.
 
 ## Writing tasks
@@ -107,7 +107,7 @@ or `someday`), `--deadline=DATE`, `--tags=a,b`, `--list="Project or Area"` (or `
 
 ### Update & complete (needs token)
 
-Completing a todo *is* an update — there is no separate `complete` command:
+Completing a todo *is* an update, and there is no separate `complete` command:
 
 ```bash
 things update --id=<UUID> --completed                  # mark done
@@ -119,7 +119,7 @@ things update --id=<UUID> --canceled                   # cancel instead of compl
 `--add-tags`, `--completed`, `--canceled`, `--list`, `--heading`) and is identified by `--id`.
 Bulk update via query filters (same as `tasks`) is possible but requires `--yes`.
 
-**Clearing a field:** pass an empty value — a fork feature (upstream drops empty
+**Clearing a field:** pass an empty value (a fork feature; upstream drops empty
 flags from the URL, making this a silent no-op there):
 
 ```bash
@@ -131,7 +131,7 @@ things tasks --search="<title>" --json               # verify via the tasks shap
 
 ```bash
 things delete --id=<UUID> --confirm=<UUID>   # non-interactive single delete
-things delete --id=<UUID>                    # interactive — prompts for confirmation
+things delete --id=<UUID>                    # interactive, prompts for confirmation
 ```
 
 Bulk delete via query filters needs `--confirm=delete --yes`.
@@ -141,18 +141,18 @@ Bulk delete via query filters needs `--confirm=delete --yes`.
 `update*` commands need a Things URL-scheme token in `THINGS_AUTH_TOKEN`.
 
 **On this machine the token lives in 1Password** and resolves via the `secret` helper
-(`~/.config/zsh/secrets.zsh`) — no need to touch the Things UI:
+(`~/.config/zsh/secrets.zsh`), so there is no need to touch the Things UI:
 
 ```bash
 source ~/.config/zsh/secrets.zsh 2>/dev/null   # required in harness/non-interactive shells:
                                         # the snapshot has a stale `secret` fn and loses
-                                        # OP_SECRETS. Trailing compdef error is harmless —
+                                        # OP_SECRETS. Trailing compdef error is harmless;
                                         # don't `&&` directly after source.
 tok=$(secret THINGS_AUTH_TOKEN -p)
 THINGS_AUTH_TOKEN="$tok" things update --id=<UUID> --completed
 ```
 
-Never print the token — pass it inline, and redact `auth-token=` from any echoed
+Never print the token. Pass it inline, and redact `auth-token=` from any echoed
 URLs (`sed -E 's/auth-token=[^&" ]+/auth-token=REDACTED/g'`).
 
 If `secret` reports the name unknown, fall back to manual setup:
@@ -186,7 +186,7 @@ the Things-only reads `now` doesn't carry.
 - **cj-now** is where the planning skills read from. `now` merges `things all --json` with
   repo `.plans/` and ADO work items, so planning skills (cj-daily, cj-notes, a weekly review)
   call `now --agent` when it is installed, not `things today`/`upcoming`/`deadlines`. Come here for the rest:
-  the logbook (`things logtoday` / `logbook` — `now` excludes completed work by design),
+  the logbook (`things logtoday` / `logbook`; `now` excludes completed work by design),
   tag/query filters, `things areas --json` for a `--list-id`, and every mutation.
   Deferred work is `now --upcoming`, not `things upcoming`.
 - **cj-notes** captures human-facing notes. When a note contains a concrete, actionable

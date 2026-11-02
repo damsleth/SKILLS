@@ -159,7 +159,7 @@ tags:
   - **HH:MM** <det skillet gjorde>
   ```
 
-- **Voice:** the journal voice is Norwegian (Bokmål) by default, compact, fragments OK, bold for emphasis, wikilinks for cross-references; chat replies mirror the trigger language. Load the cj-voice-dna skill before writing, if installed. Dashes follow the typography rule in cj-notes' *Write the note*, for the note, log lines, Things titles and chat alike; check for `—` before writing, even when cj-voice-dna is not loaded.
+- **Voice:** the journal voice is Norwegian (Bokmål) by default, compact, fragments OK, bold for emphasis, wikilinks for cross-references; chat replies mirror the trigger language. Load the cj-voice-dna skill before writing, if installed. Dashes follow the typography rule in cj-notes' *Write the note*, for the note, log lines, Things titles and chat alike; check for the em dash (U+2014) before writing, even when cj-voice-dna is not loaded.
 - Test every line: if it would be just as true tomorrow, it belongs in a task tool, the running note or the agent log.
 
 ## Refresh mode

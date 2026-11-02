@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-now — one canonical view of what is open, across every task surface.
+now: one canonical view of what is open, across every task surface.
 
 A projection, not a store. Nothing is written, nothing is synced, so nothing can
 drift. Three adapters read their source on demand:
