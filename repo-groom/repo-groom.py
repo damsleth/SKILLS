@@ -160,10 +160,10 @@ def main():
     if not repo.is_dir():
         plan["refuse"] = f"not a directory: {repo}"
     elif tier is None:
-        plan["refuse"] = ("untiered, add it to .repo-tiers.json first "
+        plan["refuse"] = ("untiered; add it to .repo-tiers.json first "
                           "(pick S-priv/S-pub/W); untiered repos are scratch")
     elif tier in REFUSE_TIERS:
-        plan["refuse"] = f"tier {tier}, NEVER groom (report-only / out of scope)"
+        plan["refuse"] = f"tier {tier}: NEVER groom (report-only / out of scope)"
 
     if plan["refuse"] is None:
         stack = detect_stack(repo)
@@ -204,7 +204,7 @@ def main():
 
         commit = {"S-priv": "commit + push OK",
                   "S-pub": "commit + push OK; releases/tags need approval",
-                  "W": "NEW BRANCH + local commits only, user pushes/PRs"}
+                  "W": "NEW BRANCH + local commits only; user pushes/PRs"}
         plan["commit_policy"] = commit.get(tier, "?")
 
     if a.json:
