@@ -132,7 +132,7 @@ shopt -s nullglob
 add_group "$(basename "$SCRIPT_DIR")" "$SCRIPT_DIR"
 scan_folder "$SCRIPT_DIR"
 
-for f in "${CONFIG_FOLDERS[@]}"; do
+for f in ${CONFIG_FOLDERS[@]+"${CONFIG_FOLDERS[@]}"}; do
     d="${f/#\~/$HOME}"
     add_group "$(basename "$d")" "$f"
     if [ -d "$d" ]; then scan_folder "$d"; else echo "Warning: skills folder $f not found" >&2; fi
@@ -163,7 +163,7 @@ fi
 # Is this group header a user-configured folder (removable from the menu)?
 is_config_group() {
     local f
-    for f in "${CONFIG_FOLDERS[@]}"; do [ "$f" = "${SKILL_PATHS[$1]}" ] && return 0; done
+    for f in ${CONFIG_FOLDERS[@]+"${CONFIG_FOLDERS[@]}"}; do [ "$f" = "${SKILL_PATHS[$1]}" ] && return 0; done
     return 1
 }
 
@@ -765,7 +765,7 @@ interactive_menu() {
                 elif ! compgen -G "$expanded/*/SKILL.md" >/dev/null && ! compgen -G "$expanded/personal/*/SKILL.md" >/dev/null; then
                     status_msg="no skills (*/SKILL.md) found in $newdir"
                 else
-                    restart_with_folders "${CONFIG_FOLDERS[@]}" "$newdir"
+                    restart_with_folders ${CONFIG_FOLDERS[@]+"${CONFIG_FOLDERS[@]}"} "$newdir"
                 fi
                 ;;
             $'\x04')  # Ctrl+D — remove a config folder reference (not the folder)
@@ -775,7 +775,7 @@ interactive_menu() {
                     IFS= read -rsn1 yn
                     if [ "$yn" = "y" ] || [ "$yn" = "Y" ]; then
                         local keep=() f
-                        for f in "${CONFIG_FOLDERS[@]}"; do [ "$f" = "${SKILL_PATHS[$cursor]}" ] || keep+=("$f"); done
+                        for f in ${CONFIG_FOLDERS[@]+"${CONFIG_FOLDERS[@]}"}; do [ "$f" = "${SKILL_PATHS[$cursor]}" ] || keep+=("$f"); done
                         restart_with_folders "${keep[@]}"
                     fi
                 elif [ "$cursor" -ge 0 ] && [ "${SKILL_KIND[$cursor]}" = "group" ]; then
