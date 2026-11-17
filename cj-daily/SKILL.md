@@ -77,7 +77,6 @@ Then route what it leaves for today: an actionable item not tracked anywhere →
 
 The note holds no task state: no `- [ ]` checkboxes and no copies of open work. Tasks live in their own tools.
 
-- **Sync first:** when `ledger` exists, run `ledger loops sync`. With `things3_sync_enabled: false` in the ledger config it reports "sync disabled" and the run moves on; when it reports actions, the flag was turned on deliberately, so leave it.
 - **Read:** if `now` exists, `now --agent` (load the cj-now skill for `_owa.warnings` and the `⧉` convention); it covers every profile, personal areas included. Scope only with `--profile`: `--source` silently drops ADO and plans. `--full` only when the curated view looks thin. Otherwise, if `things` exists, read today's list per cj-things. Use the result for the spoken briefing only.
 - **Four stores, four jobs:** Azure DevOps holds work items others assign and is authoritative for their status; Things holds the user's own next steps and brain dumps; ledger loops hold reasoning and the ambient todo list agents pick up; repo `.plans/` holds repo-scoped todos and long-form plans.
 - **Things vs ADO:** a Things task never *is* an ADO work item. It may carry an ADO id in its title, and is then a personal sub-step closed on its own terms. Say nothing about `⧉` rows unless a Things task duplicates the work item outright (same title, no personal step): cancel it. Personal sub-steps stay out of ADO, and any ADO comment needs the user's explicit OK.

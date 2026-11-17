@@ -143,7 +143,7 @@ ledger init --ledger-notes-dir <dir> --source-notes-dir <vault>
 2. New note: `ledger notes add --type <fact|pref|loop|concept|goal|id> --no-inbox --scope <scope> --tag <tag> --link <path> "<body>"`. It picks the slug, applies the template, files the note and logs the `created` timeline entry. Drop `--no-inbox` to stage in `00_inbox/` for triage.
 3. Existing note: edit the file, bump `updated`, then log the change (below).
 
-An open loop needs a `status` and a concrete `Next action` checkbox. When `things3_sync_enabled` is on in the ledger config, `ledger loops sync` mirrors loops to Things, routed by scope; set `things_list_id: <area-uuid>` in a loop's frontmatter to route it explicitly (`things areas --json` lists the ids). `scope: work` has no default area and lands in the Things Inbox, so give those loops a `things_list_id`.
+An open loop needs a `status` and a concrete `Next action` checkbox.
 
 ### Timeline logging
 
