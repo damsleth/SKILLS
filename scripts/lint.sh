@@ -88,11 +88,13 @@ if command -v shellcheck >/dev/null 2>&1; then
     done
     shopt -u nullglob
     [ -f "$REPO_ROOT/cj-todo/todo.sh" ] && shell_files+=("$REPO_ROOT/cj-todo/todo.sh")
-    if ! shellcheck "${shell_files[@]}" 2>/tmp/skills-shellcheck.err; then
+    shellcheck_err="$(mktemp)"
+    trap 'rm -f "$shellcheck_err"' EXIT
+    if ! shellcheck "${shell_files[@]}" 2>"$shellcheck_err"; then
         report "shellcheck found issues"
-        sed 's/^/      /' /tmp/skills-shellcheck.err >&2
+        sed 's/^/      /' "$shellcheck_err" >&2
     fi
-    rm -f /tmp/skills-shellcheck.err
+    rm -f "$shellcheck_err"
 else
     detail "shellcheck not found; skipping"
 fi

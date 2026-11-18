@@ -213,11 +213,18 @@ def read_pairs(root):
     """
     out = []
 
+    # External participants' entries carry a third child between name and
+    # text: an empty AXGroup badge described "External unfamiliar". Requiring
+    # exactly two children silently dropped every external speaker (seen live
+    # 2026-11-12: only the user's own lines were captured). So: exactly two
+    # static texts, plus only childless non-text badges.
     def walk(elem):
         kids = each(elem, "AXChildren")
-        if len(kids) == 2 and all(attr(k, "AXRole") == "AXStaticText" for k in kids):
-            speaker = (attr(kids[0], "AXValue") or "").strip()
-            text = (attr(kids[1], "AXValue") or "").strip()
+        texts = [k for k in kids if attr(k, "AXRole") == "AXStaticText"]
+        badges = [k for k in kids if attr(k, "AXRole") != "AXStaticText"]
+        if len(texts) == 2 and len(badges) <= 1 and not any(each(b, "AXChildren") for b in badges):
+            speaker = (attr(texts[0], "AXValue") or "").strip()
+            text = (attr(texts[1], "AXValue") or "").strip()
             if speaker and text:
                 out.append((speaker, text))
             return
@@ -343,12 +350,16 @@ def write(path, hist, started):
     """Rewrite the transcript atomically: a crash must not truncate it."""
     body = [f"<!-- teams-captions, started {started} -->\n\n"]
     body += [f"**{ts} {s}:** {t}\n" for ts, s, t in hist]
-    tmp = f"{path}.tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.writelines(body)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(prefix=".teams-captions-", dir=os.path.dirname(os.path.abspath(path)))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.writelines(body)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def rect(elem):

@@ -87,3 +87,5 @@ test_todo_archive_collision
 test_todo_list_all
 test_installer_blocked_target_fails
 test_installer_list_has_no_ansi
+
+python3 "$REPO_ROOT/scripts/test-security.py"
